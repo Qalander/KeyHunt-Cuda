@@ -10,6 +10,7 @@ This is a modified version of VanitySearch by [JeanLucPons](https://github.com/J
 - It supports both CPU and Cuda devices as the original VanitySearch does.
 - It uses bloom filter for huge addresses matching, but as you know bloom filter gives false-positive results so we need to verify these results with actual binary data. To verifying bloom results it uses binary search function from [keyhunt](https://github.com/albertobsd/keyhunt) by albertobsd.
 - Because binary search requires the whole RIPEMD160 file in the memory so it keeps this file data in the system memory and transfers bloom data only to GPU memory, and binary checking for false-positive results is done on CPU. This way we can load a very large RIPEMD160 binary file.
+- Search compressed and un-compressed address only.
 - For args parsing it uses [argparse](https://github.com/jamolnng/argparse) by jamolnng)
 
 ## ToDo
