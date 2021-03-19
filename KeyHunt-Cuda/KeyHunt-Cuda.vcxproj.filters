@@ -1,0 +1,144 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="BLOOM">
+      <UniqueIdentifier>{698582e5-391f-4f09-bd52-41c0cefad772}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ENCODE">
+      <UniqueIdentifier>{9f3ef0d4-08c9-4ebd-80d0-828a43d4773e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GPU">
+      <UniqueIdentifier>{8f82e15c-429f-4683-8552-ff7c67fef1b8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="HASH">
+      <UniqueIdentifier>{cd2d9c02-0c0d-4698-a07f-df2427ede5ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="KEYHUNT">
+      <UniqueIdentifier>{957fb233-6559-48cb-aeb4-842f05530f86}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SECP256K1">
+      <UniqueIdentifier>{1f2d7638-1fb3-4430-9598-4dafd7cf1364}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Bloom.cpp">
+      <Filter>BLOOM</Filter>
+    </ClCompile>
+    <ClCompile Include="Base58.cpp">
+      <Filter>ENCODE</Filter>
+    </ClCompile>
+    <ClCompile Include="GPU\GPUGenerate.cpp">
+      <Filter>GPU</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\ripemd160.cpp">
+      <Filter>HASH</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\ripemd160_sse.cpp">
+      <Filter>HASH</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\sha256.cpp">
+      <Filter>HASH</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\sha256_sse.cpp">
+      <Filter>HASH</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\sha512.cpp">
+      <Filter>HASH</Filter>
+    </ClCompile>
+    <ClCompile Include="KeyHunt.cpp">
+      <Filter>KEYHUNT</Filter>
+    </ClCompile>
+    <ClCompile Include="Timer.cpp">
+      <Filter>KEYHUNT</Filter>
+    </ClCompile>
+    <ClCompile Include="Int.cpp">
+      <Filter>SECP256K1</Filter>
+    </ClCompile>
+    <ClCompile Include="IntGroup.cpp">
+      <Filter>SECP256K1</Filter>
+    </ClCompile>
+    <ClCompile Include="IntMod.cpp">
+      <Filter>SECP256K1</Filter>
+    </ClCompile>
+    <ClCompile Include="Point.cpp">
+      <Filter>SECP256K1</Filter>
+    </ClCompile>
+    <ClCompile Include="Random.cpp">
+      <Filter>SECP256K1</Filter>
+    </ClCompile>
+    <ClCompile Include="SECP256K1.cpp">
+      <Filter>SECP256K1</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Bech32.cpp">
+      <Filter>ENCODE</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Bloom.h">
+      <Filter>BLOOM</Filter>
+    </ClInclude>
+    <ClInclude Include="Base58.h">
+      <Filter>ENCODE</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUBase58.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUCompute.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUEngine.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUGroup.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUHash.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUMath.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\ripemd160.h">
+      <Filter>HASH</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\sha256.h">
+      <Filter>HASH</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\sha512.h">
+      <Filter>HASH</Filter>
+    </ClInclude>
+    <ClInclude Include="ArgParse.h">
+      <Filter>KEYHUNT</Filter>
+    </ClInclude>
+    <ClInclude Include="KeyHunt.h">
+      <Filter>KEYHUNT</Filter>
+    </ClInclude>
+    <ClInclude Include="Timer.h">
+      <Filter>KEYHUNT</Filter>
+    </ClInclude>
+    <ClInclude Include="Int.h">
+      <Filter>SECP256K1</Filter>
+    </ClInclude>
+    <ClInclude Include="IntGroup.h">
+      <Filter>SECP256K1</Filter>
+    </ClInclude>
+    <ClInclude Include="Point.h">
+      <Filter>SECP256K1</Filter>
+    </ClInclude>
+    <ClInclude Include="Random.h">
+      <Filter>SECP256K1</Filter>
+    </ClInclude>
+    <ClInclude Include="SECP256k1.h">
+      <Filter>SECP256K1</Filter>
+    </ClInclude>
+    <ClInclude Include="Bech32.h">
+      <Filter>ENCODE</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="GPU\GPUEngine.cu">
+      <Filter>GPU</Filter>
+    </CudaCompile>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.1321
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KeyHunt-Cuda", "KeyHunt-Cuda\KeyHunt-Cuda.vcxproj", "{C982E936-E84D-40E6-AA84-D439DC2D83A9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C982E936-E84D-40E6-AA84-D439DC2D83A9}.Debug|x64.ActiveCfg = Debug|x64
+		{C982E936-E84D-40E6-AA84-D439DC2D83A9}.Debug|x64.Build.0 = Debug|x64
+		{C982E936-E84D-40E6-AA84-D439DC2D83A9}.Release|x64.ActiveCfg = Release|x64
+		{C982E936-E84D-40E6-AA84-D439DC2D83A9}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F9FAD4F8-3C94-4981-86DB-37BCB7B1640B}
+	EndGlobalSection
+EndGlobal
