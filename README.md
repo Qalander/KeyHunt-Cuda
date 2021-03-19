@@ -3,6 +3,8 @@ _Hunt for Bitcoin private keys._
 
 This is a modified version of VanitySearch by [JeanLucPons](https://github.com/JeanLucPons/VanitySearch/).
 
+It is important to binary sort the RIPEMD160 file before giving it to the program, otherwise binary search function would not properly.
+
 ## Changes
 
 - Renamed from VanitySearch to KeyHunt (inspired from [keyhunt](https://github.com/albertobsd/keyhunt) by albertobsd).
