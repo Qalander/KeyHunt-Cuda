@@ -3,8 +3,6 @@ _Hunt for Bitcoin private keys._
 
 This is a modified version of VanitySearch by [JeanLucPons](https://github.com/JeanLucPons/VanitySearch/).
 
-It's not completed right now, so bugs can be seen.
-
 ## Changes
 
 - Renamed from VanitySearch to KeyHunt (inspired from [keyhunt](https://github.com/albertobsd/keyhunt) by albertobsd).
@@ -13,6 +11,10 @@ It's not completed right now, so bugs can be seen.
 - It uses bloom filter for huge addresses matching, but as you know bloom filter gives false-positive results so we need to verify these results with actual binary data. To verifying bloom results it uses binary search function from [keyhunt](https://github.com/albertobsd/keyhunt) by albertobsd.
 - Because binary search requires the whole RIPEMD160 file in the memory so it keeps this file data in the system memory and transfers bloom data only to GPU memory, and binary checking for false-positive results is done on CPU. This way we can load a very large RIPEMD160 binary file.
 - For args parsing it uses [argparse](https://github.com/jamolnng/argparse) by jamolnng)
+
+## ToDo
+
+- Add feature to search in given key-space range.
 
 # Usage
 ```
