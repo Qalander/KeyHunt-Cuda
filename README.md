@@ -5,6 +5,8 @@ This is a modified version of VanitySearch by [JeanLucPons](https://github.com/J
 
 It is important to binary sort the RIPEMD160 file before giving it to the program, otherwise binary search function would not properly.
 
+A lot of gratitude to all the developers whose codes are has been used here.
+
 ## Changes
 
 - Renamed from VanitySearch to KeyHunt (inspired from [keyhunt](https://github.com/albertobsd/keyhunt) by albertobsd).
