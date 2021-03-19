@@ -1,4 +1,5 @@
-# KeyHunt-Cuda ## _Brute force Bitcoin private keys._
+# KeyHunt-Cuda 
+_Brute force Bitcoin private keys._
 
 This is a modified version of VanitySearch by [JeanLucPons](https://github.com/JeanLucPons/VanitySearch/).
 
