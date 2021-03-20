@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdexcept>
 
-#define RELEASE "1.0"
+#define RELEASE "1.01"
 
 using namespace std;
 using namespace argparse;
@@ -110,7 +110,7 @@ int main(int argc, const char* argv[])
 	parser.add_argument("-e", "--nosse", estr, false);
 	parser.add_argument("-l", "--list", lstr, false);
 	parser.add_argument("-r", "--rkey", rstr, false);
-	parser.add_argument("-f", "--file", fstr, true);
+	parser.add_argument("-f", "--file", fstr, false);
 	parser.enable_help();
 
 	auto err = parser.parse(argc, argv);
@@ -127,6 +127,7 @@ int main(int argc, const char* argv[])
 
 	if (parser.exists("version")) {
 		printf("KeyHunt-Cuda v" RELEASE "\n");
+		return 0;
 	}
 
 	if (parser.exists("uncomp")) {
@@ -194,6 +195,11 @@ int main(int argc, const char* argv[])
 	}
 	else if (gridSize.size() != gpuId.size() * 2) {
 		printf("Invalid gridSize or gpuId argument, must have coherent size\n");
+		exit(-1);
+	}
+
+	if (hash160File.length() <= 0) {
+		printf("Invalid RIPEMD160 binary hash file path\n");
 		exit(-1);
 	}
 
