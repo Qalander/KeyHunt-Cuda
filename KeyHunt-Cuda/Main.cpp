@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdexcept>
 
-#define RELEASE "1.01"
+#define RELEASE "1.02"
 
 using namespace std;
 using namespace argparse;
