@@ -35,7 +35,7 @@ public:
 
 	KeyHunt(std::string addressFile, std::string seed, int searchMode,
 		bool useGpu, std::string outputFile, bool useSSE, uint32_t maxFound,
-		uint64_t rekey, bool paranoiacSeed, bool& should_exit);
+		uint64_t rekey, int nbit, bool paranoiacSeed, bool& should_exit);
 	~KeyHunt();
 
 	void Search(int nbThread, std::vector<int> gpuId, std::vector<int> gridSize, bool& should_exit);
@@ -78,6 +78,7 @@ private:
 	int nbCPUThread;
 	int nbGPUThread;
 	int nbFoundKey;
+	int nbit;
 	uint64_t rekey;
 	uint64_t lastRekey;
 	std::string outputFile;

@@ -1,6 +1,6 @@
 /*
- * This file is part of the VanitySearch distribution (https://github.com/JeanLucPons/VanitySearch).
- * Copyright (c) 2019 Jean Luc PONS.
+ * This file is part of the BSGS distribution (https://github.com/JeanLucPons/Kangaroo).
+ * Copyright (c) 2020 Jean Luc PONS.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,44 +19,40 @@
 
 using namespace std;
 
-IntGroup::IntGroup(int size)
-{
-    this->size = size;
-    subp = (Int *)malloc(size * sizeof(Int));
+IntGroup::IntGroup(int size) {
+	this->size = size;
+	subp = (Int*)malloc(size * sizeof(Int));
 }
 
-IntGroup::~IntGroup()
-{
-    free(subp);
+IntGroup::~IntGroup() {
+	free(subp);
 }
 
-void IntGroup::Set(Int *pts)
-{
-    ints = pts;
+void IntGroup::Set(Int* pts) {
+	ints = pts;
 }
 
 // Compute modular inversion of the whole group
-void IntGroup::ModInv()
-{
+void IntGroup::ModInv() {
 
-    Int newValue;
-    Int inverse;
+	Int newValue;
+	Int inverse;
 
-    subp[0].Set(&ints[0]);
-    for (int i = 1; i < size; i++) {
-        subp[i].ModMulK1(&subp[i - 1], &ints[i]);
-    }
+	subp[0].Set(&ints[0]);
+	for (int i = 1; i < size; i++) {
+		subp[i].ModMulK1(&subp[i - 1], &ints[i]);
+	}
 
-    // Do the inversion
-    inverse.Set(&subp[size - 1]);
-    inverse.ModInv();
+	// Do the inversion
+	inverse.Set(&subp[size - 1]);
+	inverse.ModInv();
 
-    for (int i = size - 1; i > 0; i--) {
-        newValue.ModMulK1(&subp[i - 1], &inverse);
-        inverse.ModMulK1(&ints[i]);
-        ints[i].Set(&newValue);
-    }
+	for (int i = size - 1; i > 0; i--) {
+		newValue.ModMulK1(&subp[i - 1], &inverse);
+		inverse.ModMulK1(&ints[i]);
+		ints[i].Set(&newValue);
+	}
 
-    ints[0].Set(&inverse);
+	ints[0].Set(&inverse);
 
 }

@@ -27,59 +27,62 @@ A lot of gratitude to all the developers whose codes has been used here.
 ```
 Usage: KeyHunt-Cuda [options...]
 Options:
-    -v, --version          Print version                                                                                   
-    -u, --uncomp           Search uncompressed addresses                                                                   
-    -b, --both             Search both uncompressed or compressed addresses                                                
-    -g, --gpu              Enable GPU calculation                                                                          
-    -i, --gpui             GPU ids: 0,1...: List of GPU(s) to use, default is 0                                            
+    -v, --version          Print version
+    -c, --check            Check the workings of the codes
+    -u, --uncomp           Search uncompressed addresses
+    -b, --both             Search both uncompressed or compressed addresses
+    -g, --gpu              Enable GPU calculation
+    -i, --gpui             GPU ids: 0,1...: List of GPU(s) to use, default is 0
     -x, --gpux             GPU gridsize: g0x,g0y,g1x,g1y, ...: Specify GPU(s) kernel gridsize, default is 8*(MP number),128
-    -o, --out              Outputfile: Output results to the specified file, default: Found.txt                            
-    -m, --max              Specify maximun number of addresses found by each kernel call                                   
-    -s, --seed             Seed: Specify a seed for the base key, default is random                                        
-    -t, --thread           threadNumber: Specify number of CPU thread, default is number of core                           
-    -e, --nosse            Disable SSE hash function                                                                       
-    -l, --list             List cuda enabled devices                                                                       
-    -r, --rkey             Rkey: Rekey interval in MegaKey, default is disabled                                            
-    -f, --file             RIPEMD160 Address file path                                                                      (Required)
-    -h, --help             Shows this page        
+    -o, --out              Outputfile: Output results to the specified file, default: Found.txt
+    -m, --max              Specify maximun number of addresses found by each kernel call
+    -s, --seed             Seed: Specify a seed for the base key, default is random
+    -t, --thread           threadNumber: Specify number of CPU thread, default is number of core
+    -e, --nosse            Disable SSE hash function
+    -l, --list             List cuda enabled devices
+    -r, --rkey             Rkey: Rekey interval in MegaKey, default is disabled
+    -n, --nbit             Number of base key random bits
+    -f, --file             RIPEMD160 binary hash file path
+    -h, --help             Shows this page
 
 ```
 
 ```
-KeyHunt-Cuda.exe -t 8 -g -f G:/BTCADDRESSES/address6-160-sorted.bin
+KeyHunt-Cuda.exe -t 0 -g -i 0 -x 256,128 -n 120 -f "G:\BTCADDRESSES\address1-160-sorted.bin"
 
-KeyHunt-Cuda v1.0
+KeyHunt-Cuda v1.03
 
 MODE         : COMPRESSED
-DEVICE       : CPU & GPU
-CPU THREAD   : 8
+DEVICE       : GPU
+CPU THREAD   : 0
 GPU IDS      : 0
-GPU GRIDSIZE : -1x128
+GPU GRIDSIZE : 256x128
 SSE          : YES
 SEED         :
 RKEY(Mk)     : 0
+NBIT         : 120
 MAX FOUND    : 65536
-HASH160 FILE : G:/BTCADDRESSES/address6-160-sorted.bin
+HASH160 FILE : G:\BTCADDRESSES\address1-160-sorted.bin
 OUTPUT FILE  : Found.txt
 
 Loading      : 100 %
-Loaded       : 195,855,350 address
+Loaded       : 73,446 address
 
-Bloom at 000001EBD359DBC0
+Bloom at 00000233F3AFE6F0
   Version    : 2.1
-  Entries    : 391710700
+  Entries    : 146892
   Error      : 0.0000010000
-  Bits       : 11263709779
+  Bits       : 4223905
   Bits/Elem  : 28.755175
-  Bytes      : 1407963723 (1342 MB)
+  Bytes      : 527989 (0 MB)
   Hash funcs : 20
 
-Start Time   : Fri Mar 19 19:44:25 2021
-Base Key     : 2FC7AE69A953E920D4E7CA655FB52386A1516AE8F9101FF7826450397D441C00
+Start Time   : Sun Mar 28 01:39:10 2021
+Base Key     : 0000000000000000000000000000000000B2E2584BCDDD8EF7382DF58863DB4B (120 bit)
 
-GPU          : GPU #0 GeForce GTX 1650 (14x64 cores) Grid(112x128)
+GPU          : GPU #0 GeForce GTX 1650 (14x64 cores) Grid(256x128)
 
-[00:00:17] [CPU+GPU: 243.40 Mk/s] [GPU: 231.94 Mk/s] [T: 4,249,135,104] [F: 0]
+[00:00:08] [CPU+GPU: 494.87 Mk/s] [GPU: 494.87 Mk/s] [T: 4,026,531,840] [F: 0]
 
 BYE
 

@@ -1,6 +1,6 @@
 /*
- * This file is part of the VanitySearch distribution (https://github.com/JeanLucPons/VanitySearch).
- * Copyright (c) 2019 Jean Luc PONS.
+ * This file is part of the BSGS distribution (https://github.com/JeanLucPons/Kangaroo).
+ * Copyright (c) 2020 Jean Luc PONS.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,21 +21,20 @@
 #include "Int.h"
 #include <vector>
 
-class IntGroup
-{
+class IntGroup {
 
 public:
 
 	IntGroup(int size);
 	~IntGroup();
-	void Set(Int *pts);
+	void Set(Int* pts);
 	void ModInv();
 
 private:
 
-	Int *ints;
-    Int *subp;
-    int size;
+	Int* ints;
+	Int* subp;
+	int size;
 
 };
 

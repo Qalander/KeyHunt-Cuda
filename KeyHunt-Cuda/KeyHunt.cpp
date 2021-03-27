@@ -23,7 +23,7 @@ Point _2Gn;
 
 KeyHunt::KeyHunt(string addressFile, string seed, int searchMode,
 	bool useGpu, string outputFile, bool useSSE, uint32_t maxFound,
-	uint64_t rekey, bool paranoiacSeed, bool& should_exit)
+	uint64_t rekey, int nbit, bool paranoiacSeed, bool& should_exit)
 {
 	this->searchMode = searchMode;
 	this->useGpu = useGpu;
@@ -32,6 +32,7 @@ KeyHunt::KeyHunt(string addressFile, string seed, int searchMode,
 	this->nbGPUThread = 0;
 	this->addressFile = addressFile;
 	this->rekey = rekey;
+	this->nbit = nbit;
 	this->maxFound = maxFound;
 	this->searchType = P2PKH;
 
@@ -130,13 +131,18 @@ KeyHunt::KeyHunt(string addressFile, string seed, int searchMode,
 	}
 
 	// Protect seed against "seed search attack" using pbkdf2_hmac_sha512
-	string salt = "KeyHunt";
-	unsigned char hseed[64];
-	pbkdf2_hmac_sha512(hseed, 64, (const uint8_t *)seed.c_str(), seed.length(),
-		(const uint8_t *)salt.c_str(), salt.length(),
-		2048);
-	startKey.SetInt32(0);
-	sha256(hseed, 64, (unsigned char *)startKey.bits64);
+	if (this->nbit <= 0) {
+		string salt = "KeyHunt";
+		unsigned char hseed[64];
+		pbkdf2_hmac_sha512(hseed, 64, (const uint8_t*)seed.c_str(), seed.length(),
+			(const uint8_t*)salt.c_str(), salt.length(),
+			2048);
+		startKey.SetInt32(0);
+		sha256(hseed, 64, (unsigned char*)startKey.bits64);
+	}
+	else {
+		startKey.Rand(this->nbit);
+	}
 
 	char *ctimeBuff;
 	time_t now = time(NULL);
@@ -147,7 +153,7 @@ KeyHunt::KeyHunt(string addressFile, string seed, int searchMode,
 		printf("Base Key     : Randomly changed every %.0f Mkeys\n\n", (double)rekey);
 	}
 	else {
-		printf("Base Key     : %s\n\n", startKey.GetBase16().c_str());
+		printf("Base Key     : %064s (%d bit)\n\n", startKey.GetBase16().c_str(), startKey.GetBitLength());
 	}
 
 }
@@ -612,7 +618,7 @@ void KeyHunt::getCPUStartingKey(int thId, Int &key, Point &startP)
 {
 
 	if (rekey > 0) {
-		key.Rand(256);
+		key.Rand(nbit);
 	}
 	else {
 		key.Set(&startKey);
@@ -809,7 +815,7 @@ void KeyHunt::getGPUStartingKeys(int thId, int groupSize, int nbThread, Int *key
 
 	for (int i = 0; i < nbThread; i++) {
 		if (rekey > 0) {
-			keys[i].Rand(256);
+			keys[i].Rand(nbit);
 		}
 		else {
 			keys[i].Set(&startKey);

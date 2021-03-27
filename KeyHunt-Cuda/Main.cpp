@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdexcept>
 
-#define RELEASE "1.02"
+#define RELEASE "1.03"
 
 using namespace std;
 using namespace argparse;
@@ -16,6 +16,7 @@ bool should_exit = false;
 // ----------------------------------------------------------------------------
 
 const char* vstr = "Print version                                                                                   ";
+const char* cstr = "Check the working of the codes                                                                  ";
 const char* ustr = "Search uncompressed addresses                                                                   ";
 const char* bstr = "Search both uncompressed or compressed addresses                                                ";
 const char* gstr = "Enable GPU calculation                                                                          ";
@@ -28,6 +29,7 @@ const char* tstr = "threadNumber: Specify number of CPU thread, default is numbe
 const char* estr = "Disable SSE hash function                                                                       ";
 const char* lstr = "List cuda enabled devices                                                                       ";
 const char* rstr = "Rkey: Rekey interval in MegaKey, default is disabled                                            ";
+const char* nstr = "Number of base key random bits                                                                  ";
 const char* fstr = "RIPEMD160 binary hash file path                                                                 ";
 
 
@@ -89,6 +91,7 @@ int main(int argc, const char* argv[])
 	string outputFile = "Found.txt";
 	string hash160File = "";
 	int nbCPUThread = Timer::getCoreNumber();
+	int nbit = 0;
 	bool tSpecified = false;
 	bool sse = true;
 	uint32_t maxFound = 1024 * 64;
@@ -98,6 +101,7 @@ int main(int argc, const char* argv[])
 	ArgumentParser parser("KeyHunt-Cuda", "Hunt for Bitcoin private keys.");
 
 	parser.add_argument("-v", "--version", vstr, false);
+	parser.add_argument("-c", "--check", cstr, false);
 	parser.add_argument("-u", "--uncomp", ustr, false);
 	parser.add_argument("-b", "--both", bstr, false);
 	parser.add_argument("-g", "--gpu", gstr, false);
@@ -110,6 +114,7 @@ int main(int argc, const char* argv[])
 	parser.add_argument("-e", "--nosse", estr, false);
 	parser.add_argument("-l", "--list", lstr, false);
 	parser.add_argument("-r", "--rkey", rstr, false);
+	parser.add_argument("-n", "--nbit", nstr, false);
 	parser.add_argument("-f", "--file", fstr, false);
 	parser.enable_help();
 
@@ -127,6 +132,21 @@ int main(int argc, const char* argv[])
 
 	if (parser.exists("version")) {
 		printf("KeyHunt-Cuda v" RELEASE "\n");
+		return 0;
+	}
+
+	if (parser.exists("check")) {
+		printf("KeyHunt-Cuda v" RELEASE "\n");
+		printf("Checking... Int\n\n");
+		Int K;
+		K.SetBase16("3EF7CEF65557B61DC4FF2313D0049C584017659A32B002C105D04A19DA52CB47");
+		K.Check();
+
+		printf("\n\nChecking... Secp256K1\n\n");
+		Secp256K1 sec;
+		sec.Init();
+		sec.Check();
+
 		return 0;
 	}
 
@@ -180,6 +200,14 @@ int main(int argc, const char* argv[])
 
 	if (parser.exists("rkey")) {
 		rekey = parser.get<uint64_t>("r");
+	}
+
+	if (parser.exists("nbit")) {
+		nbit = parser.get<int>("n");
+		if (nbit < 0 || nbit > 256) {
+			printf("Invalid nbit value, must have in range: 1 - 256\n");
+			exit(-1);
+		}
 	}
 
 	if (parser.exists("file")) {
@@ -241,6 +269,7 @@ int main(int argc, const char* argv[])
 		printf("SSE          : %s\n", sse ? "YES" : "NO");
 		printf("SEED         : %s\n", seed.c_str());
 		printf("RKEY(Mk)     : %llu\n", rekey);
+		printf("NBIT         : %d\n", nbit);
 		printf("MAX FOUND    : %d\n", maxFound);
 		printf("HASH160 FILE : %s\n", hash160File.c_str());
 		printf("OUTPUT FILE  : %s\n", outputFile.c_str());
@@ -248,7 +277,7 @@ int main(int argc, const char* argv[])
 
 	if (SetConsoleCtrlHandler(CtrlHandler, TRUE)) {
 		KeyHunt* v = new KeyHunt(hash160File, seed, searchMode, gpuEnable,
-			outputFile, sse, maxFound, rekey, paranoiacSeed, should_exit);
+			outputFile, sse, maxFound, rekey, nbit, paranoiacSeed, should_exit);
 
 		v->Search(nbCPUThread, gpuId, gridSize, should_exit);
 
