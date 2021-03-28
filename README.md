@@ -1,5 +1,6 @@
 # KeyHunt-Cuda 
 _Hunt for Bitcoin private keys._
+## This is a experimental project.
 
 This is a modified version of VanitySearch by [JeanLucPons](https://github.com/JeanLucPons/VanitySearch/).
 
@@ -8,6 +9,7 @@ To convert Bitcoin legacy addresses to RIPEMD160 hasehs use this [b58dec](https:
 It is important to binary sort the RIPEMD160 file before giving it to the program, otherwise binary search function would not work properly. To do this work use this [RMD160-Sort](https://github.com/kanhavishva/RMD160-Sort).
 
 A lot of gratitude to all the developers whose codes has been used here.
+
 
 ## Changes
 
