@@ -27,7 +27,7 @@ typedef struct {
 
 	Int rangeStart;
 	Int rangeEnd;
-	Int rangeDiff;
+	//Int rangeDiff;
 
 } TH_PARAM;
 
@@ -37,8 +37,8 @@ class KeyHunt
 
 public:
 
-	KeyHunt(const std::string& addressFile, int searchMode,
-		bool useGpu, const std::string& outputFile, bool useSSE, uint32_t maxFound,
+	KeyHunt(const std::string& addressFile, const std::vector<unsigned char>& addressHash, 
+		int searchMode, bool useGpu, const std::string& outputFile, bool useSSE, uint32_t maxFound,
 		const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit);
 	~KeyHunt();
 
@@ -51,7 +51,9 @@ private:
 	std::string GetHex(std::vector<unsigned char>& buffer);
 	bool checkPrivKey(std::string addr, Int& key, int32_t incr, int endomorphism, bool mode);
 	void checkAddresses(bool compressed, Int key, int i, Point p1);
+	void checkAddresses2(bool compressed, Int key, int i, Point p1);
 	void checkAddressesSSE(bool compressed, Int key, int i, Point p1, Point p2, Point p3, Point p4);
+	void checkAddressesSSE2(bool compressed, Int key, int i, Point p1, Point p2, Point p3, Point p4);
 	void output(std::string addr, std::string pAddr, std::string pAddrHex);
 	bool isAlive(TH_PARAM* p);
 
@@ -64,6 +66,7 @@ private:
 	void getGPUStartingKeys(int thId, Int& tRangeStart, Int& tRangeEnd, int groupSize, int nbThread, Int* keys, Point* p);
 
 	int CheckBloomBinary(const uint8_t* hash);
+	bool MatchHash160(uint32_t* _h);
 	std::string formatThousands(uint64_t x);
 	char* toTimeStr(int sec, char* timeStr);
 
@@ -75,6 +78,7 @@ private:
 
 	int searchMode;
 	int searchType;
+	int addressMode;
 
 	bool useGpu;
 	bool endOfSearch;
@@ -84,6 +88,8 @@ private:
 	
 	std::string outputFile;
 	std::string addressFile;
+	//std::string addressHash;
+	uint32_t hash160[5];
 	bool useSSE;
 
 	Int rangeStart;

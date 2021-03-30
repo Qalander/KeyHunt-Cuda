@@ -1,12 +1,14 @@
 #include "Timer.h"
 #include "KeyHunt.h"
+#include "Base58.h"
 #include "ArgParse.h"
 #include <fstream>
 #include <string>
 #include <string.h>
 #include <stdexcept>
+#include <cassert>
 
-#define RELEASE "1.04"
+#define RELEASE "1.05"
 
 using namespace std;
 using namespace argparse;
@@ -31,6 +33,7 @@ const char* lstr = "List cuda enabled devices                                   
 //const char* rstr = "Rkey: Rekey interval in MegaKey, default is disabled                                            ";
 //const char* nstr = "Number of base key random bits                                                                  ";
 const char* fstr = "Ripemd160 binary hash file path                                                                 ";
+const char* astr = "P2PKH Address (single address mode)                                                             ";
 
 const char* pstr = "Range start in hex                                                                              ";
 const char* qstr = "Range end in hex, if not provided then, endRange would be: startRange + 10000000000000000       ";
@@ -93,6 +96,10 @@ int main(int argc, const char* argv[])
 	//string seed = "";
 	string outputFile = "Found.txt";
 	string hash160File = "";
+	string address = "";
+	//string hash160 = "";
+	std::vector<unsigned char> hash160;
+	bool singleAddress = false;
 	int nbCPUThread = Timer::getCoreNumber();
 	//int nbit = 0;
 	bool tSpecified = false;
@@ -102,6 +109,7 @@ int main(int argc, const char* argv[])
 	//bool paranoiacSeed = false;
 	string rangeStart = "";
 	string rangeEnd = "";
+	hash160.clear();
 
 	ArgumentParser parser("KeyHunt-Cuda", "Hunt for Bitcoin private keys.");
 
@@ -120,6 +128,7 @@ int main(int argc, const char* argv[])
 	//parser.add_argument("-r", "--rkey", rstr, false);
 	//parser.add_argument("-n", "--nbit", nstr, false);
 	parser.add_argument("-f", "--file", fstr, false);
+	parser.add_argument("-a", "--addr", astr, false);
 
 	parser.add_argument("-s", "--start", pstr, false);
 	parser.add_argument("-e", "--end", qstr, false);
@@ -226,6 +235,21 @@ int main(int argc, const char* argv[])
 		hash160File = parser.get<string>("f");
 	}
 
+	if (parser.exists("addr")) {
+		address = parser.get<string>("a");
+		if (address.length() < 30 || address[0] != '1') {
+			printf("Invalid addr argument, must have P2PKH address only\n");
+			exit(-1);
+		}
+		else {
+			if (DecodeBase58(address, hash160)) {
+				hash160.erase(hash160.begin() + 0);
+				hash160.erase(hash160.begin() + 20, hash160.begin() + 24);
+				assert(hash160.size() == 20);
+			}
+		}
+	}
+
 	if (parser.exists("start")) {
 		rangeStart = parser.get<string>("s");
 	}
@@ -246,10 +270,16 @@ int main(int argc, const char* argv[])
 		exit(-1);
 	}
 
-	if (hash160File.length() <= 0) {
-		printf("Invalid ripemd160 binary hash file path\n");
+	if ((hash160.size() <= 0) && (hash160File.length() <= 0)) {
+		printf("Invalid ripemd160 binary hash file path or invalid address\n");
 		exit(-1);
 	}
+
+	if ((hash160.size() > 0) && (hash160File.length() > 0)) {
+		printf("Invalid arguments, addr and file, both option can't be used together\n");
+		exit(-1);
+	}
+
 	if (rangeStart.length() <= 0) {
 		printf("Invalid rangeStart argument, please provide start range at least, endRange would be: startRange + 10000000000000000\n");
 		exit(-1);
@@ -305,12 +335,15 @@ int main(int argc, const char* argv[])
 			printf("\n");
 		printf("SSE          : %s\n", sse ? "YES" : "NO");
 		printf("MAX FOUND    : %d\n", maxFound);
-		printf("HASH160 FILE : %s\n", hash160File.c_str());
+		if (hash160File.length() > 0)
+			printf("HASH160 FILE : %s\n", hash160File.c_str());
+		else
+			printf("ADDRESS      : %s (single address mode)\n", address.c_str());
 		printf("OUTPUT FILE  : %s\n", outputFile.c_str());
 	}
 
 	if (SetConsoleCtrlHandler(CtrlHandler, TRUE)) {
-		KeyHunt* v = new KeyHunt(hash160File, searchMode, gpuEnable,
+		KeyHunt* v = new KeyHunt(hash160File, hash160, searchMode, gpuEnable,
 			outputFile, sse, maxFound, rangeStart, rangeEnd, should_exit);
 
 		v->Search(nbCPUThread, gpuId, gridSize, should_exit);
