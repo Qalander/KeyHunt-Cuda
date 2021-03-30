@@ -22,7 +22,9 @@ A lot of gratitude to all the developers whose codes has been used here.
 
 ## ToDo
 
-- Add feature to search in given key-space range.
+- Save current state to work file and continue from it.
+- Decrement from end range to start range.
+- Stop on range completion.
 
 # Usage
 
