@@ -46,7 +46,7 @@ Options:
     -l, --list             List cuda enabled devices
     -f, --file             Ripemd160 binary hash file path
     -s, --start            Range start in hex
-    -e, --end              Range end in hex
+    -e, --end              Range end in hex, if not provided then, endRange would be: startRange + 10000000000000000
     -h, --help             Shows this page
 
 ```

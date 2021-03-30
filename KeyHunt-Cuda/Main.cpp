@@ -33,7 +33,7 @@ const char* lstr = "List cuda enabled devices                                   
 const char* fstr = "Ripemd160 binary hash file path                                                                 ";
 
 const char* pstr = "Range start in hex                                                                              ";
-const char* qstr = "Range end in hex                                                                                ";
+const char* qstr = "Range end in hex, if not provided then, endRange would be: startRange + 10000000000000000       ";
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
