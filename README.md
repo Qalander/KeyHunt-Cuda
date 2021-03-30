@@ -29,7 +29,7 @@ A lot of gratitude to all the developers whose codes has been used here.
 - Completely random mode in specified range.
 - Completely random mode in whole 256 bit range.
 - Sequential random mode in specified range.
-
+_ Add changelog.
 
 
 # Usage
