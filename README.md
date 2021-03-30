@@ -26,6 +26,11 @@ A lot of gratitude to all the developers whose codes has been used here.
 - Decrement from end range to start range.
 - Stop on range completion.
 - More friendly command line arguments.
+- Completely random mode in specified range.
+- Completely random mode in whole 256 bit range.
+- Sequential random mode in specified range.
+
+
 
 # Usage
 
