@@ -10,7 +10,6 @@ It is important to binary sort the RIPEMD160 file before giving it to the progra
 
 A lot of gratitude to all the developers whose codes has been used here.
 
-
 ## Changes
 
 - Renamed from VanitySearch to KeyHunt (inspired from [keyhunt](https://github.com/albertobsd/keyhunt) by albertobsd).
@@ -26,51 +25,53 @@ A lot of gratitude to all the developers whose codes has been used here.
 - Add feature to search in given key-space range.
 
 # Usage
+
+CPU and GPU can not be used together, because right now the program divides the whole input range into equal parts for all the threads, so use either CPU or GPU so that the whole range can increment by all the threads with consistency.
+
+
 ```
+KeyHunt-Cuda.exe -h
 Usage: KeyHunt-Cuda [options...]
 Options:
     -v, --version          Print version
-    -c, --check            Check the workings of the codes
+    -c, --check            Check the working of the codes
     -u, --uncomp           Search uncompressed addresses
     -b, --both             Search both uncompressed or compressed addresses
     -g, --gpu              Enable GPU calculation
     -i, --gpui             GPU ids: 0,1...: List of GPU(s) to use, default is 0
-    -x, --gpux             GPU gridsize: g0x,g0y,g1x,g1y, ...: Specify GPU(s) kernel gridsize, default is 8*(MP number),128
+    -x, --gpux             GPU gridsize: g0x,g0y,g1x,g1y, ...: Specify GPU(s) kernel gridsize, default is 8*(Device MP count),128
     -o, --out              Outputfile: Output results to the specified file, default: Found.txt
     -m, --max              Specify maximun number of addresses found by each kernel call
-    -s, --seed             Seed: Specify a seed for the base key, default is random
     -t, --thread           threadNumber: Specify number of CPU thread, default is number of core
-    -e, --nosse            Disable SSE hash function
     -l, --list             List cuda enabled devices
-    -r, --rkey             Rkey: Rekey interval in MegaKey, default is disabled
-    -n, --nbit             Number of base key random bits
-    -f, --file             RIPEMD160 binary hash file path
+    -f, --file             Ripemd160 binary hash file path
+    -s, --start            Range start in hex
+    -e, --end              Range end in hex
     -h, --help             Shows this page
 
 ```
 
-```
-KeyHunt-Cuda.exe -t 0 -g -i 0 -x 256,128 -n 120 -f "G:\BTCADDRESSES\address1-160-sorted.bin"
 
-KeyHunt-Cuda v1.03
+CPU mode:
+```
+KeyHunt-Cuda.exe -t 4 -s 10 -f address1-160-sorted.bin
+
+KeyHunt-Cuda v1.04
 
 MODE         : COMPRESSED
-DEVICE       : GPU
-CPU THREAD   : 0
+DEVICE       : CPU
+CPU THREAD   : 4
 GPU IDS      : 0
-GPU GRIDSIZE : 256x128
+GPU GRIDSIZE : -1x128 (grid size will be calculated automatically based on multiprocessor number on GPU device)
 SSE          : YES
-SEED         :
-RKEY(Mk)     : 0
-NBIT         : 120
 MAX FOUND    : 65536
-HASH160 FILE : G:\BTCADDRESSES\address1-160-sorted.bin
+HASH160 FILE : address1-160-sorted.bin
 OUTPUT FILE  : Found.txt
 
 Loading      : 100 %
 Loaded       : 73,446 address
 
-Bloom at 00000233F3AFE6F0
+Bloom at 000002A37A33D030
   Version    : 2.1
   Entries    : 146892
   Error      : 0.0000010000
@@ -79,15 +80,66 @@ Bloom at 00000233F3AFE6F0
   Bytes      : 527989 (0 MB)
   Hash funcs : 20
 
-Start Time   : Sun Mar 28 01:39:10 2021
-Base Key     : 0000000000000000000000000000000000B2E2584BCDDD8EF7382DF58863DB4B (120 bit)
+Start Time   : Tue Mar 30 13:23:12 2021
+Global start : 0000000000000000000000000000000000000000000000000000000000000010 (5 bit)
+Global end   : 000000000000000000000000000000000000000000000000002386F26FC10010 (54 bit)
 
-GPU          : GPU #0 GeForce GTX 1650 (14x64 cores) Grid(256x128)
+CPU Thread 00: 0000000000000000000000000000000000000000000000000000000000000010 : 0000000000000000000000000000000000000000000000000008E1BC9BF04010
+CPU Thread 01: 0000000000000000000000000000000000000000000000000008E1BC9BF04010 : 0000000000000000000000000000000000000000000000000011C37937E08010
+CPU Thread 02: 0000000000000000000000000000000000000000000000000011C37937E08010 : 000000000000000000000000000000000000000000000000001AA535D3D0C010
+             .
+CPU Thread 03: 000000000000000000000000000000000000000000000000001AA535D3D0C010 : 000000000000000000000000000000000000000000000000002386F26FC10010
 
-[00:00:08] [CPU+GPU: 494.87 Mk/s] [GPU: 494.87 Mk/s] [T: 4,026,531,840] [F: 0]
+[00:00:06] [CPU+GPU: 7.17 Mk/s] [GPU: 0.00 Mk/s] [T: 43,671,552] [F: 18]
 
 BYE
 
+```
+
+
+GPU mode:
+```
+KeyHunt-Cuda.exe -t 0 -g -i 0 -x 256,128 -s 1 -f address1-160-sorted.bin
+
+KeyHunt-Cuda v1.04
+
+MODE         : COMPRESSED
+DEVICE       : GPU
+CPU THREAD   : 0
+GPU IDS      : 0
+GPU GRIDSIZE : 256x128
+SSE          : YES
+MAX FOUND    : 65536
+HASH160 FILE : address1-160-sorted.bin
+OUTPUT FILE  : Found.txt
+
+Loading      : 100 %
+Loaded       : 73,446 address
+
+Bloom at 000001B2EAC6F2C0
+  Version    : 2.1
+  Entries    : 146892
+  Error      : 0.0000010000
+  Bits       : 4223905
+  Bits/Elem  : 28.755175
+  Bytes      : 527989 (0 MB)
+  Hash funcs : 20
+
+Start Time   : Tue Mar 30 13:30:40 2021
+Global start : 0000000000000000000000000000000000000000000000000000000000000001 (1 bit)
+Global end   : 000000000000000000000000000000000000000000000000002386F26FC10001 (54 bit)
+
+GPU          : GPU #0 GeForce GTX 1650 (14x64 cores) Grid(256x128)
+
+GPU 0 Thread 000000: 0000000000000000000000000000000000000000000000000000000000000001 : 000000000000000000000000000000000000000000000000000000470DE4DF83
+GPU 0 Thread 000001: 000000000000000000000000000000000000000000000000000000470DE4DF83 : 0000000000000000000000000000000000000000000000000000008E1BC9BF05
+GPU 0 Thread 000002: 0000000000000000000000000000000000000000000000000000008E1BC9BF05 : 000000000000000000000000000000000000000000000000000000D529AE9E87
+                  .
+GPU 0 Thread 032767: 000000000000000000000000000000000000000000000000002386AB61DC207F : 000000000000000000000000000000000000000000000000002386F26FC10001
+
+[00:00:04] [CPU+GPU: 495.66 Mk/s] [GPU: 495.66 Mk/s] [T: 2,013,265,920] [F: 14]
+
+BYE
 ```
 
 ## Building

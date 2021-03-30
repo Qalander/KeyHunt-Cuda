@@ -20,10 +20,14 @@ typedef struct {
 	int  threadId;
 	bool isRunning;
 	bool hasStarted;
-	bool rekeyRequest;
+
 	int  gridSizeX;
 	int  gridSizeY;
 	int  gpuId;
+
+	Int rangeStart;
+	Int rangeEnd;
+	Int rangeDiff;
 
 } TH_PARAM;
 
@@ -33,9 +37,9 @@ class KeyHunt
 
 public:
 
-	KeyHunt(std::string addressFile, std::string seed, int searchMode,
-		bool useGpu, std::string outputFile, bool useSSE, uint32_t maxFound,
-		uint64_t rekey, int nbit, bool paranoiacSeed, bool& should_exit);
+	KeyHunt(const std::string& addressFile, int searchMode,
+		bool useGpu, const std::string& outputFile, bool useSSE, uint32_t maxFound,
+		const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit);
 	~KeyHunt();
 
 	void Search(int nbThread, std::vector<int> gpuId, std::vector<int> gridSize, bool& should_exit);
@@ -52,12 +56,12 @@ private:
 	bool isAlive(TH_PARAM* p);
 
 	bool hasStarted(TH_PARAM* p);
-	void rekeyRequest(TH_PARAM* p);
 	uint64_t getGPUCount();
 	uint64_t getCPUCount();
+	void SetupRanges(uint32_t totalThreads);
 
-	void getCPUStartingKey(int thId, Int& key, Point& startP);
-	void getGPUStartingKeys(int thId, int groupSize, int nbThread, Int* keys, Point* p);
+	void getCPUStartingKey(int thId, Int &tRangeStart, Int& key, Point& startP);
+	void getGPUStartingKeys(int thId, Int& tRangeStart, Int& tRangeEnd, int groupSize, int nbThread, Int* keys, Point* p);
 
 	int CheckBloomBinary(const uint8_t* hash);
 	std::string formatThousands(uint64_t x);
@@ -66,7 +70,6 @@ private:
 	Secp256K1* secp;
 	Bloom* bloom;
 
-	Int startKey;
 	uint64_t counters[256];
 	double startTime;
 
@@ -78,12 +81,14 @@ private:
 	int nbCPUThread;
 	int nbGPUThread;
 	int nbFoundKey;
-	int nbit;
-	uint64_t rekey;
-	uint64_t lastRekey;
+	
 	std::string outputFile;
 	std::string addressFile;
 	bool useSSE;
+
+	Int rangeStart;
+	Int rangeEnd;
+	Int rangeDiff;
 
 	uint32_t maxFound;
 

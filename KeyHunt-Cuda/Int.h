@@ -56,10 +56,10 @@ public:
 	void Sub(Int* a, Int* b);
 	void SubOne();
 	void Mult(Int* a);
-	void Mult(uint64_t a);
-	void IMult(int64_t a);
-	void Mult(Int* a, uint64_t b);
-	void IMult(Int* a, int64_t b);
+	uint64_t Mult(uint64_t a);
+	uint64_t IMult(int64_t a);
+	uint64_t Mult(Int* a, uint64_t b);
+	uint64_t IMult(Int* a, int64_t b);
 	void Mult(Int* a, Int* b);
 	void Div(Int* a, Int* mod = NULL);
 	void MultModN(Int* a, Int* b, Int* n);
@@ -143,15 +143,16 @@ public:
 	uint32_t ModPositiveK1();
 
 	// Size
-	int GetSize();
-	int GetBitLength();
+	int GetSize();       // Number of significant 32bit limbs
+	int GetSize64();     // Number of significant 64bit limbs
+	int GetBitLength();  // Number of significant bits
 
 	// Setter
 	void SetInt32(uint32_t value);
 	void Set(Int* a);
-	void SetBase10(char* value);
-	void SetBase16(char* value);
-	void SetBaseN(int n, char* charset, char* value);
+	void SetBase10(const char* value);
+	void SetBase16(const char* value);
+	void SetBaseN(int n, const char* charset, const char* value);
 	void SetByte(int n, unsigned char byte);
 	void SetDWord(int n, uint32_t b);
 	void SetQWord(int n, uint64_t b);
@@ -174,8 +175,9 @@ public:
 	std::string GetBlockStr();
 	std::string GetC64Str(int nbDigit);
 
-	// Check function
+	// Check functions
 	static void Check();
+	static bool CheckInv(Int* a);
 
 
 	/*
@@ -192,14 +194,18 @@ public:
 
 private:
 
-	void ShiftL32BitAndSub(Int* a, int n);
+	void MatrixVecMul(Int* u, Int* v, int64_t _11, int64_t _12, int64_t _21, int64_t _22, uint64_t* cu, uint64_t* cv);
+	void MatrixVecMul(Int* u, Int* v, int64_t _11, int64_t _12, int64_t _21, int64_t _22);
+	uint64_t AddCh(Int* a, uint64_t ca, Int* b, uint64_t cb);
+	uint64_t AddCh(Int* a, uint64_t ca);
 	uint64_t AddC(Int* a);
 	void AddAndShift(Int* a, Int* b, uint64_t cH);
-	void Mult(Int* a, uint32_t b);
+	void ShiftL64BitAndSub(Int* a, int n);
+	uint64_t Mult(Int* a, uint32_t b);
 	int  GetLowestBit();
 	void CLEAR();
 	void CLEARFF();
-
+	void DivStep62(Int* u, Int* v, int64_t* eta, int* pos, int64_t* uu, int64_t* uv, int64_t* vu, int64_t* vv);
 
 };
 
@@ -216,27 +222,86 @@ static uint64_t inline _umul128(uint64_t a, uint64_t b, uint64_t* h) {
 	return rlo;
 }
 
-static uint64_t inline __shiftright128(uint64_t a, uint64_t b, unsigned char n) {
-	uint64_t c;
-	__asm__("movq %1,%0;shrdq %3,%2,%0;" : "=D"(c) : "r"(a), "r"(b), "c"(n));
-	return  c;
+static int64_t inline _mul128(int64_t a, int64_t b, int64_t* h) {
+	uint64_t rhi;
+	uint64_t rlo;
+	__asm__("imulq  %[b];" :"=d"(rhi), "=a"(rlo) : "1"(a), [b]"rm"(b));
+	*h = rhi;
+	return rlo;
 }
 
-
-static uint64_t inline __shiftleft128(uint64_t a, uint64_t b, unsigned char n) {
-	uint64_t c;
-	__asm__("movq %1,%0;shldq %3,%2,%0;" : "=D"(c) : "r"(b), "r"(a), "c"(n));
-	return  c;
+static uint64_t inline _udiv128(uint64_t hi, uint64_t lo, uint64_t d, uint64_t* r) {
+	uint64_t q;
+	uint64_t _r;
+	__asm__("divq  %[d];" :"=d"(_r), "=a"(q) : "d"(hi), "a"(lo), [d]"rm"(d));
+	*r = _r;
+	return q;
 }
+
+static uint64_t inline __rdtsc() {
+	uint32_t h;
+	uint32_t l;
+	__asm__("rdtsc;" :"=d"(h), "=a"(l));
+	return (uint64_t)h << 32 | (uint64_t)l;
+}
+
+#define __shiftright128(a,b,n) ((a)>>(n))|((b)<<(64-(n)))
+#define __shiftleft128(a,b,n) ((b)<<(n))|((a)>>(64-(n)))
+
 
 #define _subborrow_u64(a,b,c,d) __builtin_ia32_sbb_u64(a,b,c,(long long unsigned int*)d);
 #define _addcarry_u64(a,b,c,d) __builtin_ia32_addcarryx_u64(a,b,c,(long long unsigned int*)d);
 #define _byteswap_uint64 __builtin_bswap64
+#define LZC(x) __builtin_clzll(x)
+#define TZC(x) __builtin_ctzll(x)
+
 #else
+
 #include <intrin.h>
+#pragma intrinsic(_BitScanReverse64)
+#pragma intrinsic(_BitScanForward64)
+//#define TZC(x) _tzcnt_u64(x)
+//#define LZC(x) _lzcnt_u64(x)
+
+//static unsigned __int64 TZC(unsigned __int64 x) {
+//	if (x == 0ULL)
+//		return 64;
+//	return _tzcnt_u64(x);
+//}
+//
+//static unsigned __int64 LZC(unsigned __int64 x) {
+//	if (x == 0ULL)
+//		return 64;
+//	return 63ULL - _lzcnt_u64(x);
+//}
+
+static unsigned __int64 TZC(unsigned __int64 x) {
+	if (x == 0ULL)
+		return 64;
+	unsigned long index = 0;
+	_BitScanForward64(&index, x);
+	return index;
+}
+
+static unsigned __int64 LZC(unsigned __int64 x) {
+	if (x == 0ULL)
+		return 64;
+	unsigned long index = 0;
+	_BitScanReverse64(&index, x);
+	return (63UL - index);
+}
+
 #endif
 
-static void inline imm_mul(uint64_t* x, uint64_t y, uint64_t* dst) {
+
+#define LoadI64(i,i64)    \
+i.bits64[0] = i64;        \
+i.bits64[1] = i64 >> 63;  \
+i.bits64[2] = i.bits64[1];\
+i.bits64[3] = i.bits64[1];\
+i.bits64[4] = i.bits64[1];
+
+static void inline imm_mul(uint64_t* x, uint64_t y, uint64_t* dst, uint64_t* carryH) {
 
 	unsigned char c = 0;
 	uint64_t h, carry;
@@ -251,6 +316,26 @@ static void inline imm_mul(uint64_t* x, uint64_t y, uint64_t* dst) {
 	c = _addcarry_u64(c, _umul128(x[7], y, &h), carry, dst + 7); carry = h;
 	c = _addcarry_u64(c, _umul128(x[8], y, &h), carry, dst + 8); carry = h;
 #endif
+	* carryH = carry;
+
+}
+
+static void inline imm_imul(uint64_t* x, uint64_t y, uint64_t* dst, uint64_t* carryH) {
+
+	unsigned char c = 0;
+	uint64_t h, carry;
+	dst[0] = _umul128(x[0], y, &h); carry = h;
+	c = _addcarry_u64(c, _umul128(x[1], y, &h), carry, dst + 1); carry = h;
+	c = _addcarry_u64(c, _umul128(x[2], y, &h), carry, dst + 2); carry = h;
+	c = _addcarry_u64(c, _umul128(x[3], y, &h), carry, dst + 3); carry = h;
+#if NB64BLOCK > 5
+	c = _addcarry_u64(c, _umul128(x[4], y, &h), carry, dst + 4); carry = h;
+	c = _addcarry_u64(c, _umul128(x[5], y, &h), carry, dst + 5); carry = h;
+	c = _addcarry_u64(c, _umul128(x[6], y, &h), carry, dst + 6); carry = h;
+	c = _addcarry_u64(c, _umul128(x[7], y, &h), carry, dst + 7); carry = h;
+#endif
+	c = _addcarry_u64(c, _mul128(x[NB64BLOCK - 1], y, (int64_t*)&h), carry, dst + NB64BLOCK - 1); carry = h;
+	*carryH = carry;
 
 }
 
@@ -289,6 +374,23 @@ static void inline shiftR(unsigned char n, uint64_t* d) {
 
 }
 
+static void inline shiftR(unsigned char n, uint64_t* d, uint64_t h) {
+
+	d[0] = __shiftright128(d[0], d[1], n);
+	d[1] = __shiftright128(d[1], d[2], n);
+	d[2] = __shiftright128(d[2], d[3], n);
+	d[3] = __shiftright128(d[3], d[4], n);
+#if NB64BLOCK > 5
+	d[4] = __shiftright128(d[4], d[5], n);
+	d[5] = __shiftright128(d[5], d[6], n);
+	d[6] = __shiftright128(d[6], d[7], n);
+	d[7] = __shiftright128(d[7], d[8], n);
+#endif
+
+	d[NB64BLOCK - 1] = __shiftright128(d[NB64BLOCK - 1], h, n);
+
+}
+
 static void inline shiftL(unsigned char n, uint64_t* d) {
 
 #if NB64BLOCK > 5
@@ -303,6 +405,12 @@ static void inline shiftL(unsigned char n, uint64_t* d) {
 	d[1] = __shiftleft128(d[0], d[1], n);
 	d[0] = d[0] << n;
 
+}
+
+static inline int isStrictGreater128(uint64_t h1, uint64_t l1, uint64_t h2, uint64_t l2) {
+	if (h1 > h2) return 1;
+	if (h1 == h2) return l1 > l2;
+	return 0;
 }
 
 #endif // BIGINTH

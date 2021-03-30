@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdexcept>
 
-#define RELEASE "1.03"
+#define RELEASE "1.04"
 
 using namespace std;
 using namespace argparse;
@@ -21,17 +21,19 @@ const char* ustr = "Search uncompressed addresses                               
 const char* bstr = "Search both uncompressed or compressed addresses                                                ";
 const char* gstr = "Enable GPU calculation                                                                          ";
 const char* istr = "GPU ids: 0,1...: List of GPU(s) to use, default is 0                                            ";
-const char* xstr = "GPU gridsize: g0x,g0y,g1x,g1y, ...: Specify GPU(s) kernel gridsize, default is 8*(MP number),128";
+const char* xstr = "GPU gridsize: g0x,g0y,g1x,g1y, ...: Specify GPU(s) kernel gridsize, default is 8*(Device MP count),128";
 const char* ostr = "Outputfile: Output results to the specified file, default: Found.txt                            ";
 const char* mstr = "Specify maximun number of addresses found by each kernel call                                   ";
-const char* sstr = "Seed: Specify a seed for the base key, default is random                                        ";
+//const char* sstr = "Seed: Specify a seed for the base key, default is random                                        ";
 const char* tstr = "threadNumber: Specify number of CPU thread, default is number of core                           ";
-const char* estr = "Disable SSE hash function                                                                       ";
+//const char* estr = "Disable SSE hash function                                                                       ";
 const char* lstr = "List cuda enabled devices                                                                       ";
-const char* rstr = "Rkey: Rekey interval in MegaKey, default is disabled                                            ";
-const char* nstr = "Number of base key random bits                                                                  ";
-const char* fstr = "RIPEMD160 binary hash file path                                                                 ";
+//const char* rstr = "Rkey: Rekey interval in MegaKey, default is disabled                                            ";
+//const char* nstr = "Number of base key random bits                                                                  ";
+const char* fstr = "Ripemd160 binary hash file path                                                                 ";
 
+const char* pstr = "Range start in hex                                                                              ";
+const char* qstr = "Range end in hex                                                                                ";
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -84,19 +86,22 @@ int main(int argc, const char* argv[])
 	rseed(Timer::getSeed32());
 
 	bool gpuEnable = false;
+	bool gpuAutoGrid = true;
 	int searchMode = SEARCH_COMPRESSED;
 	vector<int> gpuId = { 0 };
 	vector<int> gridSize;
-	string seed = "";
+	//string seed = "";
 	string outputFile = "Found.txt";
 	string hash160File = "";
 	int nbCPUThread = Timer::getCoreNumber();
-	int nbit = 0;
+	//int nbit = 0;
 	bool tSpecified = false;
 	bool sse = true;
 	uint32_t maxFound = 1024 * 64;
-	uint64_t rekey = 0;
-	bool paranoiacSeed = false;
+	//uint64_t rekey = 0;
+	//bool paranoiacSeed = false;
+	string rangeStart = "";
+	string rangeEnd = "";
 
 	ArgumentParser parser("KeyHunt-Cuda", "Hunt for Bitcoin private keys.");
 
@@ -109,13 +114,16 @@ int main(int argc, const char* argv[])
 	parser.add_argument("-x", "--gpux", xstr, false);
 	parser.add_argument("-o", "--out", ostr, false);
 	parser.add_argument("-m", "--max", mstr, false);
-	parser.add_argument("-s", "--seed", sstr, false);
 	parser.add_argument("-t", "--thread", tstr, false);
-	parser.add_argument("-e", "--nosse", estr, false);
+	//parser.add_argument("-e", "--nosse", estr, false);
 	parser.add_argument("-l", "--list", lstr, false);
-	parser.add_argument("-r", "--rkey", rstr, false);
-	parser.add_argument("-n", "--nbit", nstr, false);
+	//parser.add_argument("-r", "--rkey", rstr, false);
+	//parser.add_argument("-n", "--nbit", nstr, false);
 	parser.add_argument("-f", "--file", fstr, false);
+
+	parser.add_argument("-s", "--start", pstr, false);
+	parser.add_argument("-e", "--end", qstr, false);
+
 	parser.enable_help();
 
 	auto err = parser.parse(argc, argv);
@@ -136,17 +144,19 @@ int main(int argc, const char* argv[])
 	}
 
 	if (parser.exists("check")) {
-		printf("KeyHunt-Cuda v" RELEASE "\n");
-		printf("Checking... Int\n\n");
-		Int K;
-		K.SetBase16("3EF7CEF65557B61DC4FF2313D0049C584017659A32B002C105D04A19DA52CB47");
-		K.Check();
+		printf("KeyHunt-Cuda v" RELEASE "\n\n");
 
-		printf("\n\nChecking... Secp256K1\n\n");
+		printf("\nChecking... Secp256K1\n\n");
 		Secp256K1 sec;
 		sec.Init();
 		sec.Check();
 
+		printf("\n\nChecking... Int\n\n");
+		Int K;
+		K.SetBase16("3EF7CEF65557B61DC4FF2313D0049C584017659A32B002C105D04A19DA52CB47");
+		K.Check();
+
+		printf("\n\nCheck completed successfully\n\n");
 		return 0;
 	}
 
@@ -159,6 +169,7 @@ int main(int argc, const char* argv[])
 
 	if (parser.exists("gpu")) {
 		gpuEnable = true;
+		nbCPUThread = 0;
 	}
 
 	if (parser.exists("gpui")) {
@@ -169,6 +180,7 @@ int main(int argc, const char* argv[])
 	if (parser.exists("gpux")) {
 		string grids = parser.get<string>("x");
 		getInts("gpux", gridSize, grids, ',');
+		gpuAutoGrid = false;
 	}
 
 	if (parser.exists("out")) {
@@ -179,39 +191,47 @@ int main(int argc, const char* argv[])
 		maxFound = parser.get<uint32_t>("m");
 	}
 
-	if (parser.exists("seed")) {
-		seed = parser.get<string>("s");
-		paranoiacSeed = true;
-	}
+	//if (parser.exists("seed")) {
+	//	seed = parser.get<string>("s");
+	//	paranoiacSeed = true;
+	//}
 
 	if (parser.exists("thread")) {
 		nbCPUThread = parser.get<int>("t");
 		tSpecified = true;
 	}
 
-	if (parser.exists("nosse")) {
-		sse = false;
-	}
+	//if (parser.exists("nosse")) {
+	//	sse = false;
+	//}
 
 	if (parser.exists("list")) {
 		GPUEngine::PrintCudaInfo();
 		return 0;
 	}
 
-	if (parser.exists("rkey")) {
-		rekey = parser.get<uint64_t>("r");
-	}
+	//if (parser.exists("rkey")) {
+	//	rekey = parser.get<uint64_t>("r");
+	//}
 
-	if (parser.exists("nbit")) {
-		nbit = parser.get<int>("n");
-		if (nbit < 0 || nbit > 256) {
-			printf("Invalid nbit value, must have in range: 1 - 256\n");
-			exit(-1);
-		}
-	}
+	//if (parser.exists("nbit")) {
+	//	nbit = parser.get<int>("n");
+	//	if (nbit < 1 || nbit > 256) {
+	//		printf("Invalid nbit value, must have in range: 1 - 256\n");
+	//		exit(-1);
+	//	}
+	//}
 
 	if (parser.exists("file")) {
 		hash160File = parser.get<string>("f");
+	}
+
+	if (parser.exists("start")) {
+		rangeStart = parser.get<string>("s");
+	}
+
+	if (parser.exists("end")) {
+		rangeEnd = parser.get<string>("e");
 	}
 
 
@@ -227,7 +247,21 @@ int main(int argc, const char* argv[])
 	}
 
 	if (hash160File.length() <= 0) {
-		printf("Invalid RIPEMD160 binary hash file path\n");
+		printf("Invalid ripemd160 binary hash file path\n");
+		exit(-1);
+	}
+	if (rangeStart.length() <= 0) {
+		printf("Invalid rangeStart argument, please provide start range at least, endRange would be: startRange + 10000000000000000\n");
+		exit(-1);
+	}
+
+	//if (rangeStart.length() > 0 && nbit > 0) {
+	//	printf("Invalid arguments, nbit and ranges, both can't be used together\n");
+	//	exit(-1);
+	//}
+
+	if (nbCPUThread > 0 && gpuEnable) {
+		printf("Invalid arguments, CPU and GPU, both can't be used together right now\n");
 		exit(-1);
 	}
 
@@ -265,19 +299,19 @@ int main(int argc, const char* argv[])
 
 			}
 		}
-		printf("\n");
+		if (gpuAutoGrid)
+			printf(" (grid size will be calculated automatically based on multiprocessor number on GPU device)\n");
+		else
+			printf("\n");
 		printf("SSE          : %s\n", sse ? "YES" : "NO");
-		printf("SEED         : %s\n", seed.c_str());
-		printf("RKEY(Mk)     : %llu\n", rekey);
-		printf("NBIT         : %d\n", nbit);
 		printf("MAX FOUND    : %d\n", maxFound);
 		printf("HASH160 FILE : %s\n", hash160File.c_str());
 		printf("OUTPUT FILE  : %s\n", outputFile.c_str());
 	}
 
 	if (SetConsoleCtrlHandler(CtrlHandler, TRUE)) {
-		KeyHunt* v = new KeyHunt(hash160File, seed, searchMode, gpuEnable,
-			outputFile, sse, maxFound, rekey, nbit, paranoiacSeed, should_exit);
+		KeyHunt* v = new KeyHunt(hash160File, searchMode, gpuEnable,
+			outputFile, sse, maxFound, rangeStart, rangeEnd, should_exit);
 
 		v->Search(nbCPUThread, gpuId, gridSize, should_exit);
 

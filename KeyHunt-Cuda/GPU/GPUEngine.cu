@@ -119,13 +119,13 @@ int _ConvertSMVer2Cores(int major, int minor)
 
 }
 
-GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, bool rekey,
+GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, /*bool rekey,*/
 	int64_t BLOOM_SIZE, uint64_t BLOOM_BITS, uint8_t BLOOM_HASHES, const uint8_t* BLOOM_DATA,
 	uint8_t* DATA, uint64_t TOTAL_ADDR)
 {
 
 	// Initialise CUDA
-	this->rekey = rekey;
+	//this->rekey = rekey;
 	this->nbThreadPerGroup = nbThreadPerGroup;
 
 	this->BLOOM_SIZE = BLOOM_SIZE;
@@ -322,11 +322,11 @@ bool GPUEngine::SetKeys(Point* p)
 	// Fill device memory
 	CudaSafeCall(cudaMemcpy(inputKey, inputKeyPinned, nbThread * 32 * 2, cudaMemcpyHostToDevice));
 
-	if (!rekey) {
+	//if (!rekey) {
 		// We do not need the input pinned memory anymore
-		CudaSafeCall(cudaFreeHost(inputKeyPinned));
-		inputKeyPinned = NULL;
-	}
+	CudaSafeCall(cudaFreeHost(inputKeyPinned));
+	inputKeyPinned = NULL;
+	//}
 
 	return callKernel();
 }

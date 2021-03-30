@@ -35,9 +35,6 @@ static const char *searchModes[] = {"Compressed", "Uncompressed", "Compressed or
 #define ITEM_SIZE32 (ITEM_SIZE/4)
 //#define _64K 65536
 
-//typedef uint16_t prefix_t;
-//typedef uint32_t prefixl_t;
-
 typedef struct {
     uint32_t thId;
     int16_t  incr;
@@ -46,18 +43,12 @@ typedef struct {
     bool mode;
 } ITEM;
 
-// Second level lookup
-//typedef struct {
-//    prefix_t sPrefix;
-//    std::vector<prefixl_t> lPrefixes;
-//} LPREFIX;
-
 class GPUEngine
 {
 
 public:
 
-    GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, bool rekey, 
+    GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, 
 		int64_t BLOOM_SIZE, uint64_t BLOOM_BITS, uint8_t BLOOM_HASHES, const uint8_t *BLOOM_DATA,
 		uint8_t *DATA, uint64_t TOTAL_ADDR);
     ~GPUEngine();
@@ -101,7 +92,7 @@ private:
     uint32_t searchType;
     bool littleEndian;
 
-    bool rekey;
+    //bool rekey;
     uint32_t maxFound;
     uint32_t outputSize;
 

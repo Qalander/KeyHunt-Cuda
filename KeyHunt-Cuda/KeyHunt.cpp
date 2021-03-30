@@ -21,9 +21,9 @@ Point _2Gn;
 
 // ----------------------------------------------------------------------------
 
-KeyHunt::KeyHunt(string addressFile, string seed, int searchMode,
-	bool useGpu, string outputFile, bool useSSE, uint32_t maxFound,
-	uint64_t rekey, int nbit, bool paranoiacSeed, bool& should_exit)
+KeyHunt::KeyHunt(const std::string& addressFile, int searchMode,
+	bool useGpu, const std::string& outputFile, bool useSSE, uint32_t maxFound,
+	const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit)
 {
 	this->searchMode = searchMode;
 	this->useGpu = useGpu;
@@ -31,10 +31,25 @@ KeyHunt::KeyHunt(string addressFile, string seed, int searchMode,
 	this->useSSE = useSSE;
 	this->nbGPUThread = 0;
 	this->addressFile = addressFile;
-	this->rekey = rekey;
-	this->nbit = nbit;
 	this->maxFound = maxFound;
 	this->searchType = P2PKH;
+	this->rangeStart.SetBase16(rangeStart.c_str());
+	if (rangeEnd.length() <= 0) {
+		this->rangeEnd.Set(&this->rangeStart);
+		this->rangeEnd.Add(10000000000000000);
+	}
+	else {
+		this->rangeEnd.SetBase16(rangeEnd.c_str());
+		if (!this->rangeEnd.IsGreaterOrEqual(&this->rangeStart)) {
+			printf("Start range is bigger than end range, so flipping ranges.\n");
+			Int t(this->rangeEnd);
+			this->rangeEnd.Set(&this->rangeStart);
+			this->rangeStart.Set(&t);
+		}
+	}
+	this->rangeDiff.SetInt32(0);
+
+
 
 	secp = new Secp256K1();
 	secp->Init();
@@ -95,10 +110,7 @@ KeyHunt::KeyHunt(string addressFile, string seed, int searchMode,
 	bloom->print();
 	printf("\n");
 
-	lastRekey = 0;
-
 	// Compute Generator table G[n] = (n+1)*G
-
 	Point g = secp->G;
 	Gn[0] = g;
 	g = secp->DoubleDirect(g);
@@ -120,41 +132,13 @@ KeyHunt::KeyHunt(string addressFile, string seed, int searchMode,
 	beta2.SetBase16("851695d49a83f8ef919bb86153cbcb16630fb68aed0a766a3ec693d68e6afa40");
 	lambda2.SetBase16("ac9c52b33fa3cf1f5ad9e3fd77ed9ba4a880b9fc8ec739c2e0cfc810b51283ce");
 
-	// Seed
-	if (seed.length() == 0) {
-		// Default seed
-		seed = Timer::getSeed(32);
-	}
-
-	if (paranoiacSeed) {
-		seed += Timer::getSeed(32);
-	}
-
-	// Protect seed against "seed search attack" using pbkdf2_hmac_sha512
-	if (this->nbit <= 0) {
-		string salt = "KeyHunt";
-		unsigned char hseed[64];
-		pbkdf2_hmac_sha512(hseed, 64, (const uint8_t*)seed.c_str(), seed.length(),
-			(const uint8_t*)salt.c_str(), salt.length(),
-			2048);
-		startKey.SetInt32(0);
-		sha256(hseed, 64, (unsigned char*)startKey.bits64);
-	}
-	else {
-		startKey.Rand(this->nbit);
-	}
-
-	char *ctimeBuff;
+	char* ctimeBuff;
 	time_t now = time(NULL);
 	ctimeBuff = ctime(&now);
 	printf("Start Time   : %s", ctimeBuff);
 
-	if (rekey > 0) {
-		printf("Base Key     : Randomly changed every %.0f Mkeys\n\n", (double)rekey);
-	}
-	else {
-		printf("Base Key     : %064s (%d bit)\n\n", startKey.GetBase16().c_str(), startKey.GetBitLength());
-	}
+	printf("Global start : %064s (%d bit)\n", this->rangeStart.GetBase16().c_str(), this->rangeStart.GetBitLength());
+	printf("Global end   : %064s (%d bit)\n", this->rangeEnd.GetBase16().c_str(), this->rangeEnd.GetBitLength());
 
 }
 
@@ -183,7 +167,7 @@ void KeyHunt::output(string addr, string pAddr, string pAddrHex)
 	pthread_mutex_lock(&ghMutex);
 #endif
 
-	FILE *f = stdout;
+	FILE* f = stdout;
 	bool needToClose = false;
 
 	if (outputFile.length() > 0) {
@@ -202,12 +186,6 @@ void KeyHunt::output(string addr, string pAddr, string pAddrHex)
 
 	fprintf(f, "PubAddress: %s\n", addr.c_str());
 
-	//if (startPubKeySpecified) {
-
-	//	fprintf(f, "PartialPriv: %s\n", pAddr.c_str());
-
-	//}
-	//else
 	{
 
 
@@ -226,6 +204,8 @@ void KeyHunt::output(string addr, string pAddr, string pAddrHex)
 
 	}
 
+	fprintf(f, "==================================================================\n");
+
 	if (needToClose)
 		fclose(f);
 
@@ -239,18 +219,15 @@ void KeyHunt::output(string addr, string pAddr, string pAddrHex)
 
 // ----------------------------------------------------------------------------
 
-bool KeyHunt::checkPrivKey(string addr, Int &key, int32_t incr, int endomorphism, bool mode)
+bool KeyHunt::checkPrivKey(string addr, Int& key, int32_t incr, int endomorphism, bool mode)
 {
 
 	Int k(&key);
-	//Point sp = startPubKey;
 
 	if (incr < 0) {
 		k.Add((uint64_t)(-incr));
 		k.Neg();
 		k.Add(&secp->order);
-		//if (startPubKeySpecified)
-		//	sp.y.ModNeg();
 	}
 	else {
 		k.Add((uint64_t)incr);
@@ -260,20 +237,14 @@ bool KeyHunt::checkPrivKey(string addr, Int &key, int32_t incr, int endomorphism
 	switch (endomorphism) {
 	case 1:
 		k.ModMulK1order(&lambda);
-		//if (startPubKeySpecified)
-		//	sp.x.ModMulK1(&beta);
 		break;
 	case 2:
 		k.ModMulK1order(&lambda2);
-		//if (startPubKeySpecified)
-		//	sp.x.ModMulK1(&beta2);
 		break;
 	}
 
 	// Check addresses
 	Point p = secp->ComputePublicKey(&k);
-	//if (startPubKeySpecified)
-	//	p = secp->AddDirect(p, sp);
 
 	string chkAddr = secp->GetAddress(searchType, mode, p);
 	if (chkAddr != addr) {
@@ -282,10 +253,7 @@ bool KeyHunt::checkPrivKey(string addr, Int &key, int32_t incr, int endomorphism
 		k.Neg();
 		k.Add(&secp->order);
 		p = secp->ComputePublicKey(&k);
-		//if (startPubKeySpecified) {
-		//	sp.y.ModNeg();
-		//	p = secp->AddDirect(p, sp);
-		//}
+
 		string chkAddr = secp->GetAddress(searchType, mode, p);
 		if (chkAddr != addr) {
 			printf("\nWarning, wrong private key generated !\n");
@@ -309,10 +277,10 @@ bool KeyHunt::checkPrivKey(string addr, Int &key, int32_t incr, int endomorphism
 DWORD WINAPI _FindKey(LPVOID lpParam)
 {
 #else
-void *_FindKey(void *lpParam)
+void* _FindKey(void* lpParam)
 {
 #endif
-	TH_PARAM *p = (TH_PARAM *)lpParam;
+	TH_PARAM* p = (TH_PARAM*)lpParam;
 	p->obj->FindKeyCPU(p);
 	return 0;
 }
@@ -321,10 +289,10 @@ void *_FindKey(void *lpParam)
 DWORD WINAPI _FindKeyGPU(LPVOID lpParam)
 {
 #else
-void *_FindKeyGPU(void *lpParam)
+void* _FindKeyGPU(void* lpParam)
 {
 #endif
-	TH_PARAM *p = (TH_PARAM *)lpParam;
+	TH_PARAM* p = (TH_PARAM*)lpParam;
 	p->obj->FindKeyGPU(p);
 	return 0;
 }
@@ -614,40 +582,31 @@ void KeyHunt::checkAddressesSSE(bool compressed, Int key, int i, Point p1, Point
 }
 
 // ----------------------------------------------------------------------------
-void KeyHunt::getCPUStartingKey(int thId, Int &key, Point &startP)
+void KeyHunt::getCPUStartingKey(int thId, Int & tRangeStart, Int & key, Point & startP)
 {
-
-	if (rekey > 0) {
-		key.Rand(nbit);
-	}
-	else {
-		key.Set(&startKey);
-		Int off((int64_t)thId);
-		off.ShiftL(64);
-		key.Add(&off);
-	}
+	key.Set(&tRangeStart);
 	Int km(&key);
 	km.Add((uint64_t)CPU_GRP_SIZE / 2);
 	startP = secp->ComputePublicKey(&km);
-	//if (startPubKeySpecified)
-	//	startP = secp->AddDirect(startP, startPubKey);
 
 }
 
-void KeyHunt::FindKeyCPU(TH_PARAM *ph)
+void KeyHunt::FindKeyCPU(TH_PARAM * ph)
 {
 
 	// Global init
 	int thId = ph->threadId;
+	Int tRangeStart = ph->rangeStart;
+	Int tRangeEnd = ph->rangeEnd;
 	counters[thId] = 0;
 
 	// CPU Thread
-	IntGroup *grp = new IntGroup(CPU_GRP_SIZE / 2 + 1);
+	IntGroup* grp = new IntGroup(CPU_GRP_SIZE / 2 + 1);
 
 	// Group Init
 	Int  key;
 	Point startP;
-	getCPUStartingKey(thId, key, startP);
+	getCPUStartingKey(thId, tRangeStart, key, startP);
 
 	Int dx[CPU_GRP_SIZE / 2 + 1];
 	Point pts[CPU_GRP_SIZE];
@@ -661,14 +620,8 @@ void KeyHunt::FindKeyCPU(TH_PARAM *ph)
 	grp->Set(dx);
 
 	ph->hasStarted = true;
-	ph->rekeyRequest = false;
 
 	while (!endOfSearch) {
-
-		if (ph->rekeyRequest) {
-			getCPUStartingKey(thId, key, startP);
-			ph->rekeyRequest = false;
-		}
 
 		// Fill group
 		int i;
@@ -810,33 +763,55 @@ void KeyHunt::FindKeyCPU(TH_PARAM *ph)
 
 // ----------------------------------------------------------------------------
 
-void KeyHunt::getGPUStartingKeys(int thId, int groupSize, int nbThread, Int *keys, Point *p)
+void KeyHunt::getGPUStartingKeys(int thId, Int & tRangeStart, Int & tRangeEnd, int groupSize, int nbThread, Int * keys, Point * p)
 {
 
+	Int tRangeDiff(tRangeEnd);
+	Int tRangeStart2(tRangeStart);
+	Int tRangeEnd2(tRangeStart);
+
+	Int tThreads;
+	tThreads.SetInt32(nbThread);
+	tRangeDiff.Set(&tRangeEnd);
+	tRangeDiff.Sub(&tRangeStart);
+	tRangeDiff.Div(&tThreads);
+
+	int rangeShowThreasold = 3;
+	int rangeShowCounter = 0;
+
 	for (int i = 0; i < nbThread; i++) {
-		if (rekey > 0) {
-			keys[i].Rand(nbit);
+
+		keys[i].Set(&tRangeStart2);
+		tRangeEnd2.Set(&tRangeStart2);
+		tRangeEnd2.Add(&tRangeDiff);
+
+
+		if (i < rangeShowThreasold) {
+			printf("GPU %d Thread %06d: %064s : %064s\n", (thId - 0x80L), i, tRangeStart2.GetBase16().c_str(), tRangeEnd2.GetBase16().c_str());
 		}
-		else {
-			keys[i].Set(&startKey);
-			Int offT((uint64_t)i);
-			offT.ShiftL(80);
-			Int offG((uint64_t)thId);
-			offG.ShiftL(112);
-			keys[i].Add(&offT);
-			keys[i].Add(&offG);
+		else if (rangeShowCounter < 1) {
+			printf("                  .\n");
+			rangeShowCounter++;
+			if (i + 1 == nbThread) {
+				printf("GPU %d Thread %06d: %064s : %064s\n", (thId - 0x80L), i, tRangeStart2.GetBase16().c_str(), tRangeEnd2.GetBase16().c_str());
+			}
 		}
+		else if (i + 1 == nbThread) {
+			printf("GPU %d Thread %06d: %064s : %064s\n", (thId - 0x80L), i, tRangeStart2.GetBase16().c_str(), tRangeEnd2.GetBase16().c_str());
+		}
+
+		tRangeStart2.Add(&tRangeDiff);
+
 		Int k(keys + i);
 		// Starting key is at the middle of the group
 		k.Add((uint64_t)(groupSize / 2));
 		p[i] = secp->ComputePublicKey(&k);
-		//if (startPubKeySpecified)
-		//	p[i] = secp->AddDirect(p[i], startPubKey);
 	}
+	printf("\n");
 
 }
 
-void KeyHunt::FindKeyGPU(TH_PARAM *ph)
+void KeyHunt::FindKeyGPU(TH_PARAM * ph)
 {
 
 	bool ok = true;
@@ -845,36 +820,30 @@ void KeyHunt::FindKeyGPU(TH_PARAM *ph)
 
 	// Global init
 	int thId = ph->threadId;
-	GPUEngine g(ph->gridSizeX, ph->gridSizeY, ph->gpuId, maxFound, (rekey != 0),
-		BLOOM_N, bloom->get_bits(), bloom->get_hashes(), bloom->get_bf(), DATA, TOTAL_ADDR);
+	Int tRangeStart = ph->rangeStart;
+	Int tRangeEnd = ph->rangeEnd;
+
+	GPUEngine g(ph->gridSizeX, ph->gridSizeY, ph->gpuId, maxFound, BLOOM_N, bloom->get_bits(), 
+		bloom->get_hashes(), bloom->get_bf(), DATA, TOTAL_ADDR);
 	int nbThread = g.GetNbThread();
-	Point *p = new Point[nbThread];
-	Int *keys = new Int[nbThread];
+	Point* p = new Point[nbThread];
+	Int* keys = new Int[nbThread];
 	vector<ITEM> found;
 
 	printf("GPU          : %s\n\n", g.deviceName.c_str());
 
 	counters[thId] = 0;
 
-	getGPUStartingKeys(thId, g.GetGroupSize(), nbThread, keys, p);
-
 	g.SetSearchMode(searchMode);
 	g.SetSearchType(searchType);
 
-	getGPUStartingKeys(thId, g.GetGroupSize(), nbThread, keys, p);
+	getGPUStartingKeys(thId, tRangeStart, tRangeEnd, g.GetGroupSize(), nbThread, keys, p);
 	ok = g.SetKeys(p);
-	ph->rekeyRequest = false;
 
 	ph->hasStarted = true;
 
 	// GPU Thread
 	while (ok && !endOfSearch) {
-
-		if (ph->rekeyRequest) {
-			getGPUStartingKeys(thId, g.GetGroupSize(), nbThread, keys, p);
-			ok = g.SetKeys(p);
-			ph->rekeyRequest = false;
-		}
 
 		// Call kernel
 		ok = g.Launch(found, false);
@@ -915,7 +884,7 @@ void KeyHunt::FindKeyGPU(TH_PARAM *ph)
 
 // ----------------------------------------------------------------------------
 
-bool KeyHunt::isAlive(TH_PARAM *p)
+bool KeyHunt::isAlive(TH_PARAM * p)
 {
 
 	bool isAlive = true;
@@ -929,7 +898,7 @@ bool KeyHunt::isAlive(TH_PARAM *p)
 
 // ----------------------------------------------------------------------------
 
-bool KeyHunt::hasStarted(TH_PARAM *p)
+bool KeyHunt::hasStarted(TH_PARAM * p)
 {
 
 	bool hasStarted = true;
@@ -938,18 +907,6 @@ bool KeyHunt::hasStarted(TH_PARAM *p)
 		hasStarted = hasStarted && p[i].hasStarted;
 
 	return hasStarted;
-
-}
-
-// ----------------------------------------------------------------------------
-
-void KeyHunt::rekeyRequest(TH_PARAM *p)
-{
-
-	bool hasStarted = true;
-	int total = nbCPUThread + nbGPUThread;
-	for (int i = 0; i < total; i++)
-		p[i].rekeyRequest = true;
 
 }
 
@@ -977,6 +934,17 @@ uint64_t KeyHunt::getCPUCount()
 
 // ----------------------------------------------------------------------------
 
+void KeyHunt::SetupRanges(uint32_t totalThreads)
+{
+	Int threads;
+	threads.SetInt32(totalThreads);
+	rangeDiff.Set(&rangeEnd);
+	rangeDiff.Sub(&rangeStart);
+	rangeDiff.Div(&threads);
+}
+
+// ----------------------------------------------------------------------------
+
 void KeyHunt::Search(int nbThread, std::vector<int> gpuId, std::vector<int> gridSize, bool& should_exit)
 {
 
@@ -987,12 +955,19 @@ void KeyHunt::Search(int nbThread, std::vector<int> gpuId, std::vector<int> grid
 	nbGPUThread = (useGpu ? (int)gpuId.size() : 0);
 	nbFoundKey = 0;
 
+	// setup ranges
+	SetupRanges(nbCPUThread + nbGPUThread);
+
 	memset(counters, 0, sizeof(counters));
 
-	//printf("Number of CPU thread: %d\n\n", nbCPUThread);
+	if (!useGpu)
+		printf("\n");
 
-	TH_PARAM *params = (TH_PARAM *)malloc((nbCPUThread + nbGPUThread) * sizeof(TH_PARAM));
+	TH_PARAM* params = (TH_PARAM*)malloc((nbCPUThread + nbGPUThread) * sizeof(TH_PARAM));
 	memset(params, 0, (nbCPUThread + nbGPUThread) * sizeof(TH_PARAM));
+
+	int rangeShowThreasold = 3;
+	int rangeShowCounter = 0;
 
 	// Launch CPU threads
 	for (int i = 0; i < nbCPUThread; i++) {
@@ -1000,13 +975,31 @@ void KeyHunt::Search(int nbThread, std::vector<int> gpuId, std::vector<int> grid
 		params[i].threadId = i;
 		params[i].isRunning = true;
 
+		params[i].rangeStart.Set(&rangeStart);
+		rangeStart.Add(&rangeDiff);
+		params[i].rangeEnd.Set(&rangeStart);
+
+		if (i < rangeShowThreasold) {
+			printf("CPU Thread %02d: %064s : %064s\n", i, params[i].rangeStart.GetBase16().c_str(), params[i].rangeEnd.GetBase16().c_str());
+		}
+		else if (rangeShowCounter < 1) {
+			printf("             .\n");
+			rangeShowCounter++;
+			if (i + 1 == nbCPUThread) {
+				printf("CPU Thread %02d: %064s : %064s\n", i, params[i].rangeStart.GetBase16().c_str(), params[i].rangeEnd.GetBase16().c_str());
+			}
+		}
+		else if (i + 1 == nbCPUThread) {
+			printf("CPU Thread %02d: %064s : %064s\n", i, params[i].rangeStart.GetBase16().c_str(), params[i].rangeEnd.GetBase16().c_str());
+		}
+
 #ifdef WIN64
 		DWORD thread_id;
-		CreateThread(NULL, 0, _FindKey, (void *)(params + i), 0, &thread_id);
+		CreateThread(NULL, 0, _FindKey, (void*)(params + i), 0, &thread_id);
 		ghMutex = CreateMutex(NULL, FALSE, NULL);
 #else
 		pthread_t thread_id;
-		pthread_create(&thread_id, NULL, &_FindKey, (void *)(params + i));
+		pthread_create(&thread_id, NULL, &_FindKey, (void*)(params + i));
 		ghMutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 	}
@@ -1019,18 +1012,25 @@ void KeyHunt::Search(int nbThread, std::vector<int> gpuId, std::vector<int> grid
 		params[nbCPUThread + i].gpuId = gpuId[i];
 		params[nbCPUThread + i].gridSizeX = gridSize[2 * i];
 		params[nbCPUThread + i].gridSizeY = gridSize[2 * i + 1];
+
+		params[nbCPUThread + i].rangeStart.Set(&rangeStart);
+		rangeStart.Add(&rangeDiff);
+		params[nbCPUThread + i].rangeEnd.Set(&rangeStart);
+
+
 #ifdef WIN64
 		DWORD thread_id;
-		CreateThread(NULL, 0, _FindKeyGPU, (void *)(params + (nbCPUThread + i)), 0, &thread_id);
+		CreateThread(NULL, 0, _FindKeyGPU, (void*)(params + (nbCPUThread + i)), 0, &thread_id);
 #else
 		pthread_t thread_id;
-		pthread_create(&thread_id, NULL, &_FindKeyGPU, (void *)(params + (nbCPUThread + i)));
+		pthread_create(&thread_id, NULL, &_FindKeyGPU, (void*)(params + (nbCPUThread + i)));
 #endif
 	}
 
 #ifndef WIN64
 	setvbuf(stdout, NULL, _IONBF, 0);
 #endif
+	printf("\n");
 
 	uint64_t lastCount = 0;
 	uint64_t gpuCount = 0;
@@ -1092,18 +1092,10 @@ void KeyHunt::Search(int nbThread, std::vector<int> gpuId, std::vector<int> grid
 			memset(timeStr, '\0', 256);
 			printf("\r[%s] [CPU+GPU: %.2f Mk/s] [GPU: %.2f Mk/s] [T: %s] [F: %d]  ",
 				toTimeStr(t1, timeStr),
-				avgKeyRate / 1000000.0, 
+				avgKeyRate / 1000000.0,
 				avgGpuKeyRate / 1000000.0,
 				formatThousands(count).c_str(),
 				nbFoundKey);
-		}
-
-		if (rekey > 0) {
-			if ((count - lastRekey) > (1000000 * rekey)) {
-				// Rekey request
-				rekeyRequest(params);
-				lastRekey = count;
-			}
 		}
 
 		lastCount = count;
@@ -1134,7 +1126,7 @@ string KeyHunt::GetHex(vector<unsigned char> &buffer)
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
-int KeyHunt::CheckBloomBinary(const uint8_t *hash)
+int KeyHunt::CheckBloomBinary(const uint8_t * hash)
 {
 	if (bloom->check(hash, 20) > 0) {
 		uint8_t* temp_read;
