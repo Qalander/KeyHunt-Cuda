@@ -31,6 +31,7 @@ A lot of gratitude to all the developers whose codes has been used here.
 
 CPU and GPU can not be used together, because right now the program divides the whole input range into equal parts for all the threads, so use either CPU or GPU so that the whole range can increment by all the threads with consistency.
 
+Minimum address should be more than 1000.
 
 ```
 KeyHunt-Cuda.exe -h
