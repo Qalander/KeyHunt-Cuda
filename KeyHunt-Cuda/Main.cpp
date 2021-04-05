@@ -7,6 +7,10 @@
 #include <string.h>
 #include <stdexcept>
 #include <cassert>
+#ifndef WIN64
+#include <signal.h>
+#include <unistd.h>
+#endif
 
 #define RELEASE "1.05"
 
@@ -69,6 +73,7 @@ void getInts(string name, vector<int>& tokens, const string& text, char sep)
 
 }
 
+#ifdef WIN64
 BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 {
 	switch (fdwCtrlType) {
@@ -81,6 +86,12 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 		return TRUE;
 	}
 }
+#else
+void CtrlHandler(int signum) {
+	printf("\n\nBYE\n");
+	exit(signum);
+}
+#endif
 
 int main(int argc, const char* argv[])
 {
@@ -341,7 +352,7 @@ int main(int argc, const char* argv[])
 			printf("ADDRESS      : %s (single address mode)\n", address.c_str());
 		printf("OUTPUT FILE  : %s\n", outputFile.c_str());
 	}
-
+#ifdef WIN64
 	if (SetConsoleCtrlHandler(CtrlHandler, TRUE)) {
 		KeyHunt* v = new KeyHunt(hash160File, hash160, searchMode, gpuEnable,
 			outputFile, sse, maxFound, rangeStart, rangeEnd, should_exit);
@@ -356,4 +367,14 @@ int main(int argc, const char* argv[])
 		printf("error: could not set control-c handler\n");
 		return 1;
 	}
+#else
+	signal(SIGINT, CtrlHandler);
+	KeyHunt* v = new KeyHunt(hash160File, hash160, searchMode, gpuEnable,
+		outputFile, sse, maxFound, rangeStart, rangeEnd, should_exit);
+
+	v->Search(nbCPUThread, gpuId, gridSize, should_exit);
+
+	delete v;
+	return 0;
+#endif
 }

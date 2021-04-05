@@ -186,10 +186,24 @@ BYE
 ```
 
 ## Building
-
+##### Windows
 - Microsoft Visual Studio Community 2019 
 - CUDA version 10.0
+##### Linux
+ - Edit the makefile and set up the appropriate CUDA SDK and compiler paths for nvcc. Or pass them as variables to `make` command.
 
+    ```make
+    CUDA       = /usr/local/cuda-11.0
+    CXXCUDA    = /usr/bin/g++
+    ```
+ - To build CPU-only version (without CUDA support):
+    ```sh
+    $ make all
+    ```
+ - To build with CUDA:
+    ```sh
+    $ make gpu=1 CCAP=35 all
+    ```
 ## License
 KeyHunt-Cuda is licensed under GPLv3.
 

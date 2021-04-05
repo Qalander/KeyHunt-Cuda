@@ -71,8 +71,13 @@ KeyHunt::KeyHunt(const std::string& addressFile, const std::vector<unsigned char
 			exit(1);
 		}
 
+#ifdef WIN64
 		_fseeki64(wfd, 0, SEEK_END);
 		N = _ftelli64(wfd);
+#else
+		fseek(wfd, 0, SEEK_END);
+		N = ftell(wfd);
+#endif
 		N = N / 20;
 		rewind(wfd);
 
