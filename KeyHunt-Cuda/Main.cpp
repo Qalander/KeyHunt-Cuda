@@ -226,7 +226,11 @@ int main(int argc, const char* argv[])
 	//}
 
 	if (parser.exists("list")) {
+#ifdef WIN64
 		GPUEngine::PrintCudaInfo();
+#else
+		printf("GPU code not compiled, use -DWITHGPU when compiling.\n");
+#endif
 		return 0;
 	}
 
