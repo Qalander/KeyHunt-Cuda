@@ -42,17 +42,7 @@ __device__ __noinline__ void _GetAddress(int type, uint32_t *hash, char *b58Add)
     int retPos = 0;
     unsigned char digits[128];
 
-    switch (type) {
-
-    case P2PKH:
-        A[0] = 0x00;
-        break;
-
-    case P2SH:
-        A[0] = 0x05;
-        break;
-
-    }
+    A[0] = 0x00;
     memcpy(A + 1, (char *)hash, 20);
 
     // Compute checksum

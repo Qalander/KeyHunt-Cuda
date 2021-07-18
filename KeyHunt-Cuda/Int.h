@@ -149,6 +149,7 @@ public:
 
 	// Setter
 	void SetInt32(uint32_t value);
+	void SetInt64(uint64_t value);
 	void Set(Int* a);
 	void SetBase10(const char* value);
 	void SetBase16(const char* value);
@@ -180,13 +181,13 @@ public:
 	static bool CheckInv(Int* a);
 
 
-	/*
+
 	// Align to 16 bytes boundary
-	union {
-	  __declspec(align(16)) uint32_t bits[NB32BLOCK];
-	  __declspec(align(16)) uint64_t bits64[NB64BLOCK];
-	};
-	*/
+	//union {
+	//	__declspec(align(16)) uint32_t bits[NB32BLOCK];
+	//	__declspec(align(16)) uint64_t bits64[NB64BLOCK];
+	//};
+
 	union {
 		uint32_t bits[NB32BLOCK];
 		uint64_t bits64[NB64BLOCK];

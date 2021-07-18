@@ -12,8 +12,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Base58.cpp" />
-    <ClCompile Include="Bech32.cpp" />
     <ClCompile Include="Bloom.cpp" />
+    <ClCompile Include="CmdParse.cpp" />
+    <ClCompile Include="GmpUtil.cpp" />
     <ClCompile Include="GPU\GPUGenerate.cpp" />
     <ClCompile Include="hash\ripemd160.cpp" />
     <ClCompile Include="hash\ripemd160_sse.cpp" />
@@ -31,14 +32,13 @@
     <ClCompile Include="Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ArgParse.h" />
     <ClInclude Include="Base58.h" />
-    <ClInclude Include="Bech32.h" />
     <ClInclude Include="Bloom.h" />
+    <ClInclude Include="CmdParse.h" />
+    <ClInclude Include="GmpUtil.h" />
     <ClInclude Include="GPU\GPUBase58.h" />
     <ClInclude Include="GPU\GPUCompute.h" />
     <ClInclude Include="GPU\GPUEngine.h" />
-    <ClInclude Include="GPU\GPUGroup.h" />
     <ClInclude Include="GPU\GPUHash.h" />
     <ClInclude Include="GPU\GPUMath.h" />
     <ClInclude Include="hash\ripemd160.h" />
@@ -114,16 +114,19 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions</EnableEnhancedInstructionSet>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <AdditionalIncludeDirectories>$(SolutionDir)gmp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;gmp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)gmp\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_37,sm_37;compute_50,sm_50;compute_52,sm_52;compute_60,sm_60;compute_61,sm_61;compute_70,sm_70;compute_75,sm_75</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

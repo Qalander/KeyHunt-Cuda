@@ -474,6 +474,15 @@ void Int::SetInt32(uint32_t value) {
 
 // ------------------------------------------------
 
+
+void Int::SetInt64(uint64_t value)
+{
+	CLEAR();
+	bits64[0] = value;
+}
+
+// ------------------------------------------------
+
 uint32_t Int::GetInt32() {
 	return bits[0];
 }

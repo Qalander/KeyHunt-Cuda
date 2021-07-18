@@ -10,12 +10,11 @@
 #include <Windows.h>
 #endif
 
-#define CPU_GRP_SIZE 1024
+#define CPU_GRP_SIZE (1024*2)
 
 class KeyHunt;
 
 typedef struct {
-
 	KeyHunt* obj;
 	int  threadId;
 	bool isRunning;
@@ -27,8 +26,7 @@ typedef struct {
 
 	Int rangeStart;
 	Int rangeEnd;
-	//Int rangeDiff;
-
+	bool rKeyRequest;
 } TH_PARAM;
 
 
@@ -37,9 +35,12 @@ class KeyHunt
 
 public:
 
-	KeyHunt(const std::string& addressFile, const std::vector<unsigned char>& addressHash, 
-		int searchMode, bool useGpu, const std::string& outputFile, bool useSSE, uint32_t maxFound,
-		const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit);
+	KeyHunt(const std::string& inputFile, int compMode, int searchMode, bool useGpu, const std::string& outputFile,
+		bool useSSE, uint32_t maxFound, uint64_t rKey, const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit);
+
+	KeyHunt(const std::vector<unsigned char>& hashORxpoint, int compMode, int searchMode, bool useGpu, const std::string& outputFile,
+		bool useSSE, uint32_t maxFound, uint64_t rKey, const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit);
+
 	~KeyHunt();
 
 	void Search(int nbThread, std::vector<int> gpuId, std::vector<int> gridSize, bool& should_exit);
@@ -48,25 +49,35 @@ public:
 
 private:
 
+	void InitGenratorTable();
+
 	std::string GetHex(std::vector<unsigned char>& buffer);
-	bool checkPrivKey(std::string addr, Int& key, int32_t incr, int endomorphism, bool mode);
-	void checkAddresses(bool compressed, Int key, int i, Point p1);
-	void checkAddresses2(bool compressed, Int key, int i, Point p1);
-	void checkAddressesSSE(bool compressed, Int key, int i, Point p1, Point p2, Point p3, Point p4);
-	void checkAddressesSSE2(bool compressed, Int key, int i, Point p1, Point p2, Point p3, Point p4);
-	void output(std::string addr, std::string pAddr, std::string pAddrHex);
+	bool checkPrivKey(std::string addr, Int& key, int32_t incr, bool mode);
+	bool checkPrivKeyX(Int& key, int32_t incr, bool mode);
+
+	void checkMultiAddresses(bool compressed, Int key, int i, Point p1);
+	void checkSingleAddress(bool compressed, Int key, int i, Point p1);
+	void checkMultiXPoints(bool compressed, Int key, int i, Point p1);
+	void checkSingleXPoint(bool compressed, Int key, int i, Point p1);
+
+	void checkMultiAddressesSSE(bool compressed, Int key, int i, Point p1, Point p2, Point p3, Point p4);
+	void checkSingleAddressesSSE(bool compressed, Int key, int i, Point p1, Point p2, Point p3, Point p4);
+
+	void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string pubKey);
 	bool isAlive(TH_PARAM* p);
 
 	bool hasStarted(TH_PARAM* p);
 	uint64_t getGPUCount();
 	uint64_t getCPUCount();
+	void rKeyRequest(TH_PARAM* p);
 	void SetupRanges(uint32_t totalThreads);
 
-	void getCPUStartingKey(int thId, Int &tRangeStart, Int& key, Point& startP);
-	void getGPUStartingKeys(int thId, Int& tRangeStart, Int& tRangeEnd, int groupSize, int nbThread, Int* keys, Point* p);
+	void getCPUStartingKey(Int& tRangeStart, Int& tRangeEnd, Int& key, Point& startP);
+	void getGPUStartingKeys(Int& tRangeStart, Int& tRangeEnd, int groupSize, int nbThread, Int* keys, Point* p);
 
-	int CheckBloomBinary(const uint8_t* hash);
+	int CheckBloomBinary(const uint8_t* _xx, uint32_t K_LENGTH);
 	bool MatchHash160(uint32_t* _h);
+	bool MatchXPoint(uint32_t* _h);
 	std::string formatThousands(uint64_t x);
 	char* toTimeStr(int sec, char* timeStr);
 
@@ -76,36 +87,34 @@ private:
 	uint64_t counters[256];
 	double startTime;
 
+	int compMode;
 	int searchMode;
-	int searchType;
-	int addressMode;
 
 	bool useGpu;
 	bool endOfSearch;
 	int nbCPUThread;
 	int nbGPUThread;
 	int nbFoundKey;
-	
+	uint64_t targetCounter;
+
 	std::string outputFile;
-	std::string addressFile;
-	//std::string addressHash;
+	std::string inputFile;
 	uint32_t hash160[5];
+	uint32_t xpoint[8];
 	bool useSSE;
 
 	Int rangeStart;
 	Int rangeEnd;
 	Int rangeDiff;
+	Int rangeDiff2;
 
 	uint32_t maxFound;
+	uint64_t rKey;
+	uint64_t lastrKey;
 
 	uint8_t* DATA;
-	uint64_t TOTAL_ADDR;
+	uint64_t TOTAL_COUNT;
 	uint64_t BLOOM_N;
-
-	Int beta;
-	Int lambda;
-	Int beta2;
-	Int lambda2;
 
 #ifdef WIN64
 	HANDLE ghMutex;

@@ -25,7 +25,6 @@
 #include "../hash/ripemd160.h"
 #include "../Timer.h"
 
-#include "GPUGroup.h"
 #include "GPUMath.h"
 #include "GPUHash.h"
 #include "GPUBase58.h"
@@ -46,49 +45,65 @@ inline void __cudaSafeCall(cudaError err, const char* file, const int line)
 
 // ---------------------------------------------------------------------------------------
 
-// mode address file
-__global__ void comp_keys(uint32_t mode, uint8_t* bloomLookUp, int BLOOM_BITS, uint8_t BLOOM_HASHES,
+// mode multiple addresses
+__global__ void compute_keys_mode_ma(uint32_t mode, uint8_t* bloomLookUp, int BLOOM_BITS, uint8_t BLOOM_HASHES,
 	uint64_t* keys, uint32_t maxFound, uint32_t* found)
 {
 
 	int xPtr = (blockIdx.x * blockDim.x) * 8;
 	int yPtr = xPtr + 4 * blockDim.x;
-	ComputeKeys(mode, keys + xPtr, keys + yPtr, bloomLookUp, BLOOM_BITS, BLOOM_HASHES, maxFound, found);
+	ComputeKeysSEARCH_MODE_MA(mode, keys + xPtr, keys + yPtr, bloomLookUp, BLOOM_BITS, BLOOM_HASHES, maxFound, found);
 
 }
 
-__global__ void comp_keys_comp(uint8_t* bloomLookUp, int BLOOM_BITS, uint8_t BLOOM_HASHES, uint64_t* keys,
+__global__ void compute_keys_comp_mode_ma(uint32_t mode, uint8_t* bloomLookUp, int BLOOM_BITS, uint8_t BLOOM_HASHES, uint64_t* keys,
 	uint32_t maxFound, uint32_t* found)
 {
 
 	int xPtr = (blockIdx.x * blockDim.x) * 8;
 	int yPtr = xPtr + 4 * blockDim.x;
-	ComputeKeysComp(keys + xPtr, keys + yPtr, bloomLookUp, BLOOM_BITS, BLOOM_HASHES, maxFound, found);
+	ComputeKeysSEARCH_MODE_MA(mode, keys + xPtr, keys + yPtr, bloomLookUp, BLOOM_BITS, BLOOM_HASHES, maxFound, found);
 
 }
 
 // mode single address
-__global__ void comp_keys2(uint32_t mode, uint32_t* hash160, uint64_t* keys, uint32_t maxFound, uint32_t* found)
+__global__ void compute_keys_mode_sa(uint32_t mode, uint32_t* hash160, uint64_t* keys, uint32_t maxFound, uint32_t* found)
 {
 
 	int xPtr = (blockIdx.x * blockDim.x) * 8;
 	int yPtr = xPtr + 4 * blockDim.x;
-	ComputeKeys2(mode, keys + xPtr, keys + yPtr, hash160, maxFound, found);
+	ComputeKeysSEARCH_MODE_SA(mode, keys + xPtr, keys + yPtr, hash160, maxFound, found);
 
 }
 
-__global__ void comp_keys_comp2(uint32_t* hash160, uint64_t* keys, uint32_t maxFound, uint32_t* found)
+__global__ void compute_keys_comp_mode_sa(uint32_t mode, uint32_t* hash160, uint64_t* keys, uint32_t maxFound, uint32_t* found)
 {
 
 	int xPtr = (blockIdx.x * blockDim.x) * 8;
 	int yPtr = xPtr + 4 * blockDim.x;
-	ComputeKeysComp2(keys + xPtr, keys + yPtr, hash160, maxFound, found);
+	ComputeKeysSEARCH_MODE_SA(mode, keys + xPtr, keys + yPtr, hash160, maxFound, found);
 
 }
 
-__global__ void clear_counter(uint32_t* found)
+// mode multiple x points
+__global__ void compute_keys_comp_mode_mx(uint32_t mode, uint8_t* bloomLookUp, int BLOOM_BITS, uint8_t BLOOM_HASHES, uint64_t* keys,
+	uint32_t maxFound, uint32_t* found)
 {
-	ClearCouter(found);
+
+	int xPtr = (blockIdx.x * blockDim.x) * 8;
+	int yPtr = xPtr + 4 * blockDim.x;
+	ComputeKeysSEARCH_MODE_MX(mode, keys + xPtr, keys + yPtr, bloomLookUp, BLOOM_BITS, BLOOM_HASHES, maxFound, found);
+
+}
+
+// mode single x point
+__global__ void compute_keys_comp_mode_sx(uint32_t mode, uint32_t* xpoint, uint64_t* keys, uint32_t maxFound, uint32_t* found)
+{
+
+	int xPtr = (blockIdx.x * blockDim.x) * 8;
+	int yPtr = xPtr + 4 * blockDim.x;
+	ComputeKeysSEARCH_MODE_SX(mode, keys + xPtr, keys + yPtr, xpoint, maxFound, found);
+
 }
 
 // ---------------------------------------------------------------------------------------
@@ -122,6 +137,8 @@ int _ConvertSMVer2Cores(int major, int minor)
 		{0x70,  64},
 		{0x72,  64},
 		{0x75,  64},
+		{0x80,  64},
+		{0x86, 128},
 		{-1, -1}
 	};
 
@@ -139,20 +156,24 @@ int _ConvertSMVer2Cores(int major, int minor)
 
 }
 
-GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, /*bool rekey,*/
-	int64_t BLOOM_SIZE, uint64_t BLOOM_BITS, uint8_t BLOOM_HASHES, const uint8_t* BLOOM_DATA,
-	uint8_t* DATA, uint64_t TOTAL_ADDR)
+// ----------------------------------------------------------------------------
+
+GPUEngine::GPUEngine(Secp256K1* secp, int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, int searchMode,
+	int compMode, int64_t BLOOM_SIZE, uint64_t BLOOM_BITS, uint8_t BLOOM_HASHES, const uint8_t* BLOOM_DATA,
+	uint8_t* DATA, uint64_t TOTAL_COUNT, bool rKey)
 {
 
 	// Initialise CUDA
-	//this->rekey = rekey;
 	this->nbThreadPerGroup = nbThreadPerGroup;
+	this->searchMode = searchMode;
+	this->compMode = compMode;
+	this->rKey = rKey;
 
 	this->BLOOM_SIZE = BLOOM_SIZE;
 	this->BLOOM_BITS = BLOOM_BITS;
 	this->BLOOM_HASHES = BLOOM_HASHES;
 	this->DATA = DATA;
-	this->TOTAL_ADDR = TOTAL_ADDR;
+	this->TOTAL_COUNT = TOTAL_COUNT;
 
 	initialised = false;
 
@@ -175,7 +196,9 @@ GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_
 
 	this->nbThread = nbThreadGroup * nbThreadPerGroup;
 	this->maxFound = maxFound;
-	this->outputSize = (maxFound * ITEM_SIZE + 4);
+	this->outputSize = (maxFound * ITEM_SIZE_A + 4);
+	if (this->searchMode == (int)SEARCH_MODE_MX)
+		this->outputSize = (maxFound * ITEM_SIZE_X + 4);
 
 	char tmp[512];
 	sprintf(tmp, "GPU #%d %s (%dx%d cores) Grid(%dx%d)",
@@ -201,29 +224,34 @@ GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_
 	CudaSafeCall(cudaMalloc((void**)&inputBloomLookUp, BLOOM_SIZE));
 	CudaSafeCall(cudaHostAlloc(&inputBloomLookUpPinned, BLOOM_SIZE, cudaHostAllocWriteCombined | cudaHostAllocMapped));
 
-	CudaSafeCall(cudaMalloc((void**)&inputHash160, 5 * sizeof(uint32_t)));
-	CudaSafeCall(cudaHostAlloc(&inputHash160Pinned, 5 * sizeof(uint32_t), cudaHostAllocWriteCombined | cudaHostAllocMapped));
-
 	memcpy(inputBloomLookUpPinned, BLOOM_DATA, BLOOM_SIZE);
 
 	CudaSafeCall(cudaMemcpy(inputBloomLookUp, inputBloomLookUpPinned, BLOOM_SIZE, cudaMemcpyHostToDevice));
 	CudaSafeCall(cudaFreeHost(inputBloomLookUpPinned));
 	inputBloomLookUpPinned = NULL;
 
+	// generator table
+	InitGenratorTable(secp);
+
+
 	CudaSafeCall(cudaGetLastError());
 
-	searchMode = SEARCH_COMPRESSED;
-	searchType = P2PKH;
+	compMode = SEARCH_COMPRESSED;
 	initialised = true;
 
 }
 
-GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, uint32_t* hash160)
+// ----------------------------------------------------------------------------
+
+GPUEngine::GPUEngine(Secp256K1* secp, int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound,
+	int searchMode, int compMode, const uint32_t* hashORxpoint, bool rKey)
 {
 
 	// Initialise CUDA
-	//this->rekey = rekey;
 	this->nbThreadPerGroup = nbThreadPerGroup;
+	this->searchMode = searchMode;
+	this->compMode = compMode;
+	this->rKey = rKey;
 
 	initialised = false;
 
@@ -246,7 +274,9 @@ GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_
 
 	this->nbThread = nbThreadGroup * nbThreadPerGroup;
 	this->maxFound = maxFound;
-	this->outputSize = (maxFound * ITEM_SIZE + 4);
+	this->outputSize = (maxFound * ITEM_SIZE_A + 4);
+	if (this->searchMode == (int)SEARCH_MODE_SX)
+		this->outputSize = (maxFound * ITEM_SIZE_X + 4);
 
 	char tmp[512];
 	sprintf(tmp, "GPU #%d %s (%dx%d cores) Grid(%dx%d)",
@@ -269,27 +299,115 @@ GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_
 	CudaSafeCall(cudaMalloc((void**)&outputBuffer, outputSize));
 	CudaSafeCall(cudaHostAlloc(&outputBufferPinned, outputSize, cudaHostAllocWriteCombined | cudaHostAllocMapped));
 
-	CudaSafeCall(cudaMalloc((void**)&inputHash160, 5 * sizeof(uint32_t)));
-	CudaSafeCall(cudaHostAlloc(&inputHash160Pinned, 5 * sizeof(uint32_t), cudaHostAllocWriteCombined | cudaHostAllocMapped));
+	int K_SIZE = 5;
+	if (this->searchMode == (int)SEARCH_MODE_SX)
+		K_SIZE = 8;
 
-	memcpy(inputHash160Pinned, hash160, 5 * sizeof(uint32_t));
+	CudaSafeCall(cudaMalloc((void**)&inputHashORxpoint, K_SIZE * sizeof(uint32_t)));
+	CudaSafeCall(cudaHostAlloc(&inputHashORxpointPinned, K_SIZE * sizeof(uint32_t), cudaHostAllocWriteCombined | cudaHostAllocMapped));
 
-	CudaSafeCall(cudaMemcpy(inputHash160, inputHash160Pinned, 5 * sizeof(uint32_t), cudaMemcpyHostToDevice));
-	CudaSafeCall(cudaFreeHost(inputHash160Pinned));
-	inputHash160Pinned = NULL;
+	memcpy(inputHashORxpointPinned, hashORxpoint, K_SIZE * sizeof(uint32_t));
+
+	CudaSafeCall(cudaMemcpy(inputHashORxpoint, inputHashORxpointPinned, K_SIZE * sizeof(uint32_t), cudaMemcpyHostToDevice));
+	CudaSafeCall(cudaFreeHost(inputHashORxpointPinned));
+	inputHashORxpointPinned = NULL;
+
+	// generator table
+	InitGenratorTable(secp);
+
 
 	CudaSafeCall(cudaGetLastError());
 
-	searchMode = SEARCH_COMPRESSED;
-	searchType = P2PKH;
+	compMode = SEARCH_COMPRESSED;
 	initialised = true;
 
 }
+
+// ----------------------------------------------------------------------------
+
+void GPUEngine::InitGenratorTable(Secp256K1* secp)
+{
+
+	// generator table
+	uint64_t* _2GnxPinned;
+	uint64_t* _2GnyPinned;
+
+	uint64_t* GxPinned;
+	uint64_t* GyPinned;
+
+	uint64_t size = (uint64_t)GRP_SIZE;
+
+	CudaSafeCall(cudaMalloc((void**)&__2Gnx, 4 * sizeof(uint64_t)));
+	CudaSafeCall(cudaHostAlloc(&_2GnxPinned, 4 * sizeof(uint64_t), cudaHostAllocWriteCombined | cudaHostAllocMapped));
+
+	CudaSafeCall(cudaMalloc((void**)&__2Gny, 4 * sizeof(uint64_t)));
+	CudaSafeCall(cudaHostAlloc(&_2GnyPinned, 4 * sizeof(uint64_t), cudaHostAllocWriteCombined | cudaHostAllocMapped));
+
+	size_t TSIZE = (size / 2) * 4 * sizeof(uint64_t);
+	CudaSafeCall(cudaMalloc((void**)&_Gx, TSIZE));
+	CudaSafeCall(cudaHostAlloc(&GxPinned, TSIZE, cudaHostAllocWriteCombined | cudaHostAllocMapped));
+
+	CudaSafeCall(cudaMalloc((void**)&_Gy, TSIZE));
+	CudaSafeCall(cudaHostAlloc(&GyPinned, TSIZE, cudaHostAllocWriteCombined | cudaHostAllocMapped));
+
+
+	Point* Gn = new Point[size];
+	Point g = secp->G;
+	Gn[0] = g;
+	g = secp->DoubleDirect(g);
+	Gn[1] = g;
+	for (int i = 2; i < size; i++) {
+		g = secp->AddDirect(g, secp->G);
+		Gn[i] = g;
+	}
+	// _2Gn = CPU_GRP_SIZE*G
+	Point _2Gn = secp->DoubleDirect(Gn[size / 2 - 1]);
+
+	int nbDigit = 4;
+	for (int i = 0; i < nbDigit; i++) {
+		_2GnxPinned[i] = _2Gn.x.bits64[i];
+		_2GnyPinned[i] = _2Gn.y.bits64[i];
+	}
+	for (int i = 0; i < size / 2; i++) {
+		for (int j = 0; j < nbDigit; j++) {
+			GxPinned[i * nbDigit + j] = Gn[i].x.bits64[j];
+			GyPinned[i * nbDigit + j] = Gn[i].y.bits64[j];
+		}
+	}
+
+	delete[] Gn;
+
+	CudaSafeCall(cudaMemcpy(__2Gnx, _2GnxPinned, 4 * sizeof(uint64_t), cudaMemcpyHostToDevice));
+	CudaSafeCall(cudaFreeHost(_2GnxPinned));
+	_2GnxPinned = NULL;
+
+	CudaSafeCall(cudaMemcpy(__2Gny, _2GnyPinned, 4 * sizeof(uint64_t), cudaMemcpyHostToDevice));
+	CudaSafeCall(cudaFreeHost(_2GnyPinned));
+	_2GnyPinned = NULL;
+
+	CudaSafeCall(cudaMemcpy(_Gx, GxPinned, TSIZE, cudaMemcpyHostToDevice));
+	CudaSafeCall(cudaFreeHost(GxPinned));
+	GxPinned = NULL;
+
+	CudaSafeCall(cudaMemcpy(_Gy, GyPinned, TSIZE, cudaMemcpyHostToDevice));
+	CudaSafeCall(cudaFreeHost(GyPinned));
+	GyPinned = NULL;
+
+	CudaSafeCall(cudaMemcpyToSymbol(_2Gnx, &__2Gnx, sizeof(uint64_t*)));
+	CudaSafeCall(cudaMemcpyToSymbol(_2Gny, &__2Gny, sizeof(uint64_t*)));
+	CudaSafeCall(cudaMemcpyToSymbol(Gx, &_Gx, sizeof(uint64_t*)));
+	CudaSafeCall(cudaMemcpyToSymbol(Gy, &_Gy, sizeof(uint64_t*)));
+
+}
+
+// ----------------------------------------------------------------------------
 
 int GPUEngine::GetGroupSize()
 {
 	return GRP_SIZE;
 }
+
+// ----------------------------------------------------------------------------
 
 void GPUEngine::PrintCudaInfo()
 {
@@ -323,57 +441,51 @@ void GPUEngine::PrintCudaInfo()
 	}
 }
 
+// ----------------------------------------------------------------------------
+
 GPUEngine::~GPUEngine()
 {
 	CudaSafeCall(cudaFree(inputKey));
-	if (this->addressMode == FILEMODE)
+	if (searchMode == (int)SEARCH_MODE_MA || searchMode == (int)SEARCH_MODE_MX)
 		CudaSafeCall(cudaFree(inputBloomLookUp));
 	else
-		CudaSafeCall(cudaFree(inputHash160));
+		CudaSafeCall(cudaFree(inputHashORxpoint));
+
 	CudaSafeCall(cudaFreeHost(outputBufferPinned));
 	CudaSafeCall(cudaFree(outputBuffer));
+
+	CudaSafeCall(cudaFree(__2Gnx));
+	CudaSafeCall(cudaFree(__2Gny));
+	CudaSafeCall(cudaFree(_Gx));
+	CudaSafeCall(cudaFree(_Gy));
+
+	if (rKey)
+		CudaSafeCall(cudaFreeHost(inputKeyPinned));
 }
+
+// ----------------------------------------------------------------------------
 
 int GPUEngine::GetNbThread()
 {
 	return nbThread;
 }
 
-void GPUEngine::SetSearchMode(int searchMode)
-{
-	this->searchMode = searchMode;
-}
+// ----------------------------------------------------------------------------
 
-void GPUEngine::SetSearchType(int searchType)
-{
-	this->searchType = searchType;
-}
-
-void GPUEngine::SetAddressMode(int addressMode)
-{
-	this->addressMode = addressMode;
-}
-
-bool GPUEngine::callKernel()
+bool GPUEngine::callKernelSEARCH_MODE_MA()
 {
 
 	// Reset nbFound
 	CudaSafeCall(cudaMemset(outputBuffer, 0, 4));
 
 	// Call the kernel (Perform STEP_SIZE keys per thread)
-	if (searchType == P2PKH) {
-		if (searchMode == SEARCH_COMPRESSED) {
-			comp_keys_comp << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
-				(inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
-		}
-		else {
-			comp_keys << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
-				(searchMode, inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
-		}
+	if (compMode == SEARCH_COMPRESSED) {
+		compute_keys_comp_mode_ma << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+			(compMode, inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
 	}
 	else {
-		printf("GPUEngine: Wrong searchType\n");
-		return false;
+		compute_keys_mode_ma << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+			(compMode, inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
 	}
 
 	cudaError_t err = cudaGetLastError();
@@ -385,26 +497,48 @@ bool GPUEngine::callKernel()
 
 }
 
-bool GPUEngine::callKernel2()
+// ----------------------------------------------------------------------------
+
+bool GPUEngine::callKernelSEARCH_MODE_MX()
 {
 
 	// Reset nbFound
 	CudaSafeCall(cudaMemset(outputBuffer, 0, 4));
 
 	// Call the kernel (Perform STEP_SIZE keys per thread)
-	if (searchType == P2PKH) {
-		if (searchMode == SEARCH_COMPRESSED) {
-			comp_keys_comp2 << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
-				(inputHash160, inputKey, maxFound, outputBuffer);
-		}
-		else {
-			comp_keys2 << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
-				(searchMode, inputHash160, inputKey, maxFound, outputBuffer);
-		}
+	if (compMode == SEARCH_COMPRESSED) {
+		compute_keys_comp_mode_mx << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+			(compMode, inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
 	}
 	else {
-		printf("GPUEngine: Wrong searchType\n");
+		printf("GPUEngine: PubKeys search doesn't support uncompressed\n");
 		return false;
+	}
+
+	cudaError_t err = cudaGetLastError();
+	if (err != cudaSuccess) {
+		printf("GPUEngine: Kernel: %s\n", cudaGetErrorString(err));
+		return false;
+	}
+	return true;
+}
+
+// ----------------------------------------------------------------------------
+
+bool GPUEngine::callKernelSEARCH_MODE_SA()
+{
+
+	// Reset nbFound
+	CudaSafeCall(cudaMemset(outputBuffer, 0, 4));
+
+	// Call the kernel (Perform STEP_SIZE keys per thread)
+	if (compMode == SEARCH_COMPRESSED) {
+		compute_keys_comp_mode_sa << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+			(compMode, inputHashORxpoint, inputKey, maxFound, outputBuffer);
+	}
+	else {
+		compute_keys_mode_sa << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+			(compMode, inputHashORxpoint, inputKey, maxFound, outputBuffer);
 	}
 
 	cudaError_t err = cudaGetLastError();
@@ -416,21 +550,36 @@ bool GPUEngine::callKernel2()
 
 }
 
-bool GPUEngine::ClearOutBuffer()
+// ----------------------------------------------------------------------------
+
+bool GPUEngine::callKernelSEARCH_MODE_SX()
 {
-	clear_counter << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> > (outputBuffer);
+
+	// Reset nbFound
+	CudaSafeCall(cudaMemset(outputBuffer, 0, 4));
+
+	// Call the kernel (Perform STEP_SIZE keys per thread)
+	if (compMode == SEARCH_COMPRESSED) {
+		compute_keys_comp_mode_sx << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+			(compMode, inputHashORxpoint, inputKey, maxFound, outputBuffer);
+	}
+	else {
+		printf("GPUEngine: PubKeys search doesn't support uncompressed\n");
+		return false;
+	}
 
 	cudaError_t err = cudaGetLastError();
 	if (err != cudaSuccess) {
-		printf("GPUEngine: ClearOutBuffer: %s\n", cudaGetErrorString(err));
+		printf("GPUEngine: Kernel: %s\n", cudaGetErrorString(err));
 		return false;
 	}
 	return true;
 }
+
+// ----------------------------------------------------------------------------
 
 bool GPUEngine::SetKeys(Point* p)
 {
-
 	// Sets the starting keys for each thread
 	// p must contains nbThread public keys
 	for (int i = 0; i < nbThread; i += nbThreadPerGroup) {
@@ -452,21 +601,37 @@ bool GPUEngine::SetKeys(Point* p)
 	// Fill device memory
 	CudaSafeCall(cudaMemcpy(inputKey, inputKeyPinned, nbThread * 32 * 2, cudaMemcpyHostToDevice));
 
-	//if (!rekey) {
+	if (!rKey) {
 		// We do not need the input pinned memory anymore
-	CudaSafeCall(cudaFreeHost(inputKeyPinned));
-	inputKeyPinned = NULL;
-	//}
-	if (addressMode == FILEMODE)
-		return callKernel();
-	else
-		return callKernel2();
+		CudaSafeCall(cudaFreeHost(inputKeyPinned));
+		inputKeyPinned = NULL;
+	}
+
+	switch (searchMode) {
+	case (int)SEARCH_MODE_MA:
+		return callKernelSEARCH_MODE_MA();
+		break;
+	case (int)SEARCH_MODE_SA:
+		return callKernelSEARCH_MODE_SA();
+		break;
+	case (int)SEARCH_MODE_MX:
+		return callKernelSEARCH_MODE_MX();
+		break;
+	case (int)SEARCH_MODE_SX:
+		return callKernelSEARCH_MODE_SX();
+		break;
+	default:
+		return false;
+		break;
+	}
 }
 
-bool GPUEngine::Launch(std::vector<ITEM>& dataFound, bool spinWait)
-{
-	dataFound.clear();
+// ----------------------------------------------------------------------------
 
+bool GPUEngine::LaunchSEARCH_MODE_MA(std::vector<ITEM>& dataFound, bool spinWait)
+{
+
+	dataFound.clear();
 
 	// Get the result
 	if (spinWait) {
@@ -485,38 +650,40 @@ bool GPUEngine::Launch(std::vector<ITEM>& dataFound, bool spinWait)
 		CudaSafeCall(cudaEventDestroy(evt));
 	}
 
-	// Look for prefix found
+	// Look for data found
 	uint32_t nbFound = outputBufferPinned[0];
 	if (nbFound > maxFound) {
 		nbFound = maxFound;
 	}
 
 	// When can perform a standard copy, the kernel is eneded
-	CudaSafeCall(cudaMemcpy(outputBufferPinned, outputBuffer, nbFound * ITEM_SIZE + 4, cudaMemcpyDeviceToHost));
+	CudaSafeCall(cudaMemcpy(outputBufferPinned, outputBuffer, nbFound * ITEM_SIZE_A + 4, cudaMemcpyDeviceToHost));
 
 	for (uint32_t i = 0; i < nbFound; i++) {
 
-		uint32_t* itemPtr = outputBufferPinned + (i * ITEM_SIZE32 + 1);
+		uint32_t* itemPtr = outputBufferPinned + (i * ITEM_SIZE_A32 + 1);
 		uint8_t* hash = (uint8_t*)(itemPtr + 2);
-		if (CheckBinary(hash) > 0) {
+		if (CheckBinary(hash, 20) > 0) {
 
 			ITEM it;
 			it.thId = itemPtr[0];
 			int16_t* ptr = (int16_t*)&(itemPtr[1]);
-			it.endo = ptr[0] & 0x7FFF;
+			//it.endo = ptr[0] & 0x7FFF;
 			it.mode = (ptr[0] & 0x8000) != 0;
 			it.incr = ptr[1];
 			it.hash = (uint8_t*)(itemPtr + 2);
 			dataFound.push_back(it);
 		}
 	}
-	return callKernel();
+	return callKernelSEARCH_MODE_MA();
 }
 
-bool GPUEngine::Launch2(std::vector<ITEM>& dataFound, bool spinWait)
-{
-	dataFound.clear();
+// ----------------------------------------------------------------------------
 
+bool GPUEngine::LaunchSEARCH_MODE_SA(std::vector<ITEM>& dataFound, bool spinWait)
+{
+
+	dataFound.clear();
 
 	// Get the result
 	if (spinWait) {
@@ -535,31 +702,135 @@ bool GPUEngine::Launch2(std::vector<ITEM>& dataFound, bool spinWait)
 		CudaSafeCall(cudaEventDestroy(evt));
 	}
 
-	// Look for prefix found
+	// Look for data found
 	uint32_t nbFound = outputBufferPinned[0];
 	if (nbFound > maxFound) {
 		nbFound = maxFound;
 	}
 
 	// When can perform a standard copy, the kernel is eneded
-	CudaSafeCall(cudaMemcpy(outputBufferPinned, outputBuffer, nbFound * ITEM_SIZE + 4, cudaMemcpyDeviceToHost));
+	CudaSafeCall(cudaMemcpy(outputBufferPinned, outputBuffer, nbFound * ITEM_SIZE_A + 4, cudaMemcpyDeviceToHost));
 
 	for (uint32_t i = 0; i < nbFound; i++) {
-		uint32_t* itemPtr = outputBufferPinned + (i * ITEM_SIZE32 + 1);
+		uint32_t* itemPtr = outputBufferPinned + (i * ITEM_SIZE_A32 + 1);
 		ITEM it;
 		it.thId = itemPtr[0];
 		int16_t* ptr = (int16_t*)&(itemPtr[1]);
-		it.endo = ptr[0] & 0x7FFF;
+		//it.endo = ptr[0] & 0x7FFF;
 		it.mode = (ptr[0] & 0x8000) != 0;
 		it.incr = ptr[1];
 		it.hash = (uint8_t*)(itemPtr + 2);
 		dataFound.push_back(it);
 	}
-	return callKernel2();
+	return callKernelSEARCH_MODE_SA();
 }
 
+// ----------------------------------------------------------------------------
 
-int GPUEngine::CheckBinary(const uint8_t* hash)
+bool GPUEngine::LaunchSEARCH_MODE_MX(std::vector<ITEM>& dataFound, bool spinWait)
+{
+
+	dataFound.clear();
+
+	// Get the result
+	if (spinWait) {
+		CudaSafeCall(cudaMemcpy(outputBufferPinned, outputBuffer, outputSize, cudaMemcpyDeviceToHost));
+	}
+	else {
+		// Use cudaMemcpyAsync to avoid default spin wait of cudaMemcpy wich takes 100% CPU
+		cudaEvent_t evt;
+		CudaSafeCall(cudaEventCreate(&evt));
+		CudaSafeCall(cudaMemcpyAsync(outputBufferPinned, outputBuffer, 4, cudaMemcpyDeviceToHost, 0));
+		CudaSafeCall(cudaEventRecord(evt, 0));
+		while (cudaEventQuery(evt) == cudaErrorNotReady) {
+			// Sleep 1 ms to free the CPU
+			Timer::SleepMillis(1);
+		}
+		CudaSafeCall(cudaEventDestroy(evt));
+	}
+
+	// Look for data found
+	uint32_t nbFound = outputBufferPinned[0];
+	if (nbFound > maxFound) {
+		nbFound = maxFound;
+	}
+
+	// When can perform a standard copy, the kernel is eneded
+	CudaSafeCall(cudaMemcpy(outputBufferPinned, outputBuffer, nbFound * ITEM_SIZE_X + 4, cudaMemcpyDeviceToHost));
+
+	for (uint32_t i = 0; i < nbFound; i++) {
+
+		uint32_t* itemPtr = outputBufferPinned + (i * ITEM_SIZE_X32 + 1);
+		uint8_t* pubkey = (uint8_t*)(itemPtr + 2);
+
+		if (CheckBinary(pubkey, 32) > 0) {
+
+			ITEM it;
+			it.thId = itemPtr[0];
+			int16_t* ptr = (int16_t*)&(itemPtr[1]);
+			//it.endo = ptr[0] & 0x7FFF;
+			it.mode = (ptr[0] & 0x8000) != 0;
+			it.incr = ptr[1];
+			it.hash = (uint8_t*)(itemPtr + 2);
+			dataFound.push_back(it);
+		}
+	}
+	return callKernelSEARCH_MODE_MX();
+}
+
+// ----------------------------------------------------------------------------
+
+bool GPUEngine::LaunchSEARCH_MODE_SX(std::vector<ITEM>& dataFound, bool spinWait)
+{
+
+	dataFound.clear();
+
+	// Get the result
+	if (spinWait) {
+		CudaSafeCall(cudaMemcpy(outputBufferPinned, outputBuffer, outputSize, cudaMemcpyDeviceToHost));
+	}
+	else {
+		// Use cudaMemcpyAsync to avoid default spin wait of cudaMemcpy wich takes 100% CPU
+		cudaEvent_t evt;
+		CudaSafeCall(cudaEventCreate(&evt));
+		CudaSafeCall(cudaMemcpyAsync(outputBufferPinned, outputBuffer, 4, cudaMemcpyDeviceToHost, 0));
+		CudaSafeCall(cudaEventRecord(evt, 0));
+		while (cudaEventQuery(evt) == cudaErrorNotReady) {
+			// Sleep 1 ms to free the CPU
+			Timer::SleepMillis(1);
+		}
+		CudaSafeCall(cudaEventDestroy(evt));
+	}
+
+	// Look for data found
+	uint32_t nbFound = outputBufferPinned[0];
+	if (nbFound > maxFound) {
+		nbFound = maxFound;
+	}
+
+	// When can perform a standard copy, the kernel is eneded
+	CudaSafeCall(cudaMemcpy(outputBufferPinned, outputBuffer, nbFound * ITEM_SIZE_X + 4, cudaMemcpyDeviceToHost));
+
+	for (uint32_t i = 0; i < nbFound; i++) {
+
+		uint32_t* itemPtr = outputBufferPinned + (i * ITEM_SIZE_X32 + 1);
+		uint8_t* pubkey = (uint8_t*)(itemPtr + 2);
+
+		ITEM it;
+		it.thId = itemPtr[0];
+		int16_t* ptr = (int16_t*)&(itemPtr[1]);
+		//it.endo = ptr[0] & 0x7FFF;
+		it.mode = (ptr[0] & 0x8000) != 0;
+		it.incr = ptr[1];
+		it.hash = (uint8_t*)(itemPtr + 2);
+		dataFound.push_back(it);
+	}
+	return callKernelSEARCH_MODE_SX();
+}
+
+// ----------------------------------------------------------------------------
+
+int GPUEngine::CheckBinary(const uint8_t* _x, int K_LENGTH)
 {
 	uint8_t* temp_read;
 	uint64_t half, min, max, current; //, current_offset
@@ -567,12 +838,12 @@ int GPUEngine::CheckBinary(const uint8_t* hash)
 	int32_t r = 0;
 	min = 0;
 	current = 0;
-	max = TOTAL_ADDR;
-	half = TOTAL_ADDR;
+	max = TOTAL_COUNT;
+	half = TOTAL_COUNT;
 	while (!r && half >= 1) {
 		half = (max - min) / 2;
-		temp_read = DATA + ((current + half) * 20);
-		rcmp = memcmp(hash, temp_read, 20);
+		temp_read = DATA + ((current + half) * K_LENGTH);
+		rcmp = memcmp(_x, temp_read, K_LENGTH);
 		if (rcmp == 0) {
 			r = 1;  //Found!!
 		}

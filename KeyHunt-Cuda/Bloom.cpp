@@ -12,8 +12,8 @@
 
 Bloom::Bloom(unsigned long long entries, double error) : _ready(0)
 {
-    if (entries < 1000 || error <= 0 || error >= 1) {
-        printf("Bloom init error\n");
+    if (entries < 2 || error <= 0 || error >= 1) {
+        printf("Bloom init error, minimum 2 entries required\n");
         return;
     }
 
@@ -328,9 +328,12 @@ unsigned int Bloom::murmurhash2(const void *key, int len, const unsigned int see
 
     switch (len) {
     case 3: h ^= data[2] << 16;
+        break;
     case 2: h ^= data[1] << 8;
+        break;
     case 1: h ^= data[0];
         h *= m;
+        break;
     };
 
     // Do a few final mixes of the hash to ensure the last few

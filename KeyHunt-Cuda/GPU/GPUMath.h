@@ -19,6 +19,11 @@
 // 256(+64) bits integer CUDA libray for SECPK1
 // ---------------------------------------------------------------------------------
 
+
+#define GRP_SIZE (1024*2)
+
+
+
 // We need 1 extra block for ModInv
 #define NBBLOCK 5
 #define BIFULLSIZE 40
@@ -48,8 +53,8 @@
 #define MADDS(r,a,b,c) asm volatile ("madc.hi.s64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c));
 
 // SECPK1 endomorphism constants
-__device__ __constant__ uint64_t _beta[] = { 0xC1396C28719501EEULL, 0x9CF0497512F58995ULL, 0x6E64479EAC3434E9ULL, 0x7AE96A2B657C0710ULL };
-__device__ __constant__ uint64_t _beta2[] = { 0x3EC693D68E6AFA40ULL, 0x630FB68AED0A766AULL, 0x919BB86153CBCB16ULL, 0x851695D49A83F8EFULL };
+//__device__ __constant__ uint64_t _beta[] = { 0xC1396C28719501EEULL, 0x9CF0497512F58995ULL, 0x6E64479EAC3434E9ULL, 0x7AE96A2B657C0710ULL };
+//__device__ __constant__ uint64_t _beta2[] = { 0x3EC693D68E6AFA40ULL, 0x630FB68AED0A766AULL, 0x919BB86153CBCB16ULL, 0x851695D49A83F8EFULL };
 
 #define HSIZE (GRP_SIZE / 2 - 1)
 
