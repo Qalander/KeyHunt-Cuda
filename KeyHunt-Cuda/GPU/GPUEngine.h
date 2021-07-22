@@ -31,7 +31,8 @@
 #define SEARCH_MODE_MX 3	// multiple xpoints
 #define SEARCH_MODE_SX 4	// single xpoint
 
-static const char* compModes[] = { "Compressed", "Uncompressed", "Compressed or Uncompressed" };
+#define COIN_BTC 1
+#define COIN_ETH 2
 
 // Number of key per thread (must be a multiple of GRP_SIZE) per kernel call
 #define STEP_SIZE (1024*2)
@@ -55,12 +56,12 @@ class GPUEngine
 
 public:
 
-	GPUEngine(Secp256K1* secp, int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, int searchMode,
-		int compMode, int64_t BLOOM_SIZE, uint64_t BLOOM_BITS, uint8_t BLOOM_HASHES, const uint8_t* BLOOM_DATA,
-		uint8_t* DATA, uint64_t TOTAL_COUNT, bool rKey);
+	GPUEngine(Secp256K1* secp, int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, 
+		int searchMode, int compMode, int coinType, int64_t BLOOM_SIZE, uint64_t BLOOM_BITS, 
+		uint8_t BLOOM_HASHES, const uint8_t* BLOOM_DATA, uint8_t* DATA, uint64_t TOTAL_COUNT, bool rKey);
 
 	GPUEngine(Secp256K1* secp, int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, 
-		int searchMode, int compMode, const uint32_t* hashORxpoint, bool rKey);
+		int searchMode, int compMode, int coinType, const uint32_t* hashORxpoint, bool rKey);
 
 	~GPUEngine();
 
@@ -115,6 +116,7 @@ private:
 	bool initialised;
 	uint32_t compMode;
 	uint32_t searchMode;
+	uint32_t coinType;
 	bool littleEndian;
 
 	bool rKey;

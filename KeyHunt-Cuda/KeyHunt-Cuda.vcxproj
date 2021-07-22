@@ -16,6 +16,7 @@
     <ClCompile Include="CmdParse.cpp" />
     <ClCompile Include="GmpUtil.cpp" />
     <ClCompile Include="GPU\GPUGenerate.cpp" />
+    <ClCompile Include="hash\keccak160.cpp" />
     <ClCompile Include="hash\ripemd160.cpp" />
     <ClCompile Include="hash\ripemd160_sse.cpp" />
     <ClCompile Include="hash\sha256.cpp" />
@@ -41,6 +42,7 @@
     <ClInclude Include="GPU\GPUEngine.h" />
     <ClInclude Include="GPU\GPUHash.h" />
     <ClInclude Include="GPU\GPUMath.h" />
+    <ClInclude Include="hash\keccak160.h" />
     <ClInclude Include="hash\ripemd160.h" />
     <ClInclude Include="hash\sha256.h" />
     <ClInclude Include="hash\sha512.h" />

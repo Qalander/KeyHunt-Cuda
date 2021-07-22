@@ -35,11 +35,13 @@ class KeyHunt
 
 public:
 
-	KeyHunt(const std::string& inputFile, int compMode, int searchMode, bool useGpu, const std::string& outputFile,
-		bool useSSE, uint32_t maxFound, uint64_t rKey, const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit);
+	KeyHunt(const std::string& inputFile, int compMode, int searchMode, int coinType, bool useGpu, 
+		const std::string& outputFile, bool useSSE, uint32_t maxFound, uint64_t rKey, 
+		const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit);
 
-	KeyHunt(const std::vector<unsigned char>& hashORxpoint, int compMode, int searchMode, bool useGpu, const std::string& outputFile,
-		bool useSSE, uint32_t maxFound, uint64_t rKey, const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit);
+	KeyHunt(const std::vector<unsigned char>& hashORxpoint, int compMode, int searchMode, int coinType, 
+		bool useGpu, const std::string& outputFile, bool useSSE, uint32_t maxFound, uint64_t rKey, 
+		const std::string& rangeStart, const std::string& rangeEnd, bool& should_exit);
 
 	~KeyHunt();
 
@@ -53,10 +55,13 @@ private:
 
 	std::string GetHex(std::vector<unsigned char>& buffer);
 	bool checkPrivKey(std::string addr, Int& key, int32_t incr, bool mode);
+	bool checkPrivKeyETH(std::string addr, Int& key, int32_t incr);
 	bool checkPrivKeyX(Int& key, int32_t incr, bool mode);
 
 	void checkMultiAddresses(bool compressed, Int key, int i, Point p1);
+	void checkMultiAddressesETH(Int key, int i, Point p1);
 	void checkSingleAddress(bool compressed, Int key, int i, Point p1);
+	void checkSingleAddressETH(Int key, int i, Point p1);
 	void checkMultiXPoints(bool compressed, Int key, int i, Point p1);
 	void checkSingleXPoint(bool compressed, Int key, int i, Point p1);
 
@@ -76,7 +81,7 @@ private:
 	void getGPUStartingKeys(Int& tRangeStart, Int& tRangeEnd, int groupSize, int nbThread, Int* keys, Point* p);
 
 	int CheckBloomBinary(const uint8_t* _xx, uint32_t K_LENGTH);
-	bool MatchHash160(uint32_t* _h);
+	bool MatchHash(uint32_t* _h);
 	bool MatchXPoint(uint32_t* _h);
 	std::string formatThousands(uint64_t x);
 	char* toTimeStr(int sec, char* timeStr);
@@ -89,6 +94,7 @@ private:
 
 	int compMode;
 	int searchMode;
+	int coinType;
 
 	bool useGpu;
 	bool endOfSearch;
@@ -99,7 +105,7 @@ private:
 
 	std::string outputFile;
 	std::string inputFile;
-	uint32_t hash160[5];
+	uint32_t hash160Keccak[5];
 	uint32_t xpoint[8];
 	bool useSSE;
 

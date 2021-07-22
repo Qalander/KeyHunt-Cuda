@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------
-# Makefile for KeyHunt-Cuda
+# Makefile for KeyHunt
 #
 # Author : Jean-Luc PONS
 
@@ -7,7 +7,7 @@ SRC = Base58.cpp IntGroup.cpp Main.cpp Bloom.cpp Random.cpp \
       Timer.cpp Int.cpp IntMod.cpp Point.cpp SECP256K1.cpp \
       KeyHunt.cpp GPU/GPUGenerate.cpp hash/ripemd160.cpp \
       hash/sha256.cpp hash/sha512.cpp hash/ripemd160_sse.cpp \
-      hash/sha256_sse.cpp CmdParse.cpp GmpUtil.cpp
+      hash/sha256_sse.cpp hash/keccak160.cpp Bech32.cpp
 
 OBJDIR = obj
 
@@ -17,8 +17,8 @@ OBJET = $(addprefix $(OBJDIR)/, \
         Base58.o IntGroup.o Main.o Bloom.o Random.o Timer.o Int.o \
         IntMod.o Point.o SECP256K1.o KeyHunt.o GPU/GPUGenerate.o \
         hash/ripemd160.o hash/sha256.o hash/sha512.o \
-        hash/ripemd160_sse.o hash/sha256_sse.o \
-        GPU/GPUEngine.o CmdParse.o GmpUtil.o)
+        hash/ripemd160_sse.o hash/sha256_sse.o hash/keccak160.o \
+        GPU/GPUEngine.o Bech32.o)
 
 else
 
@@ -26,7 +26,7 @@ OBJET = $(addprefix $(OBJDIR)/, \
         Base58.o IntGroup.o Main.o Bloom.o Random.o Timer.o Int.o \
         IntMod.o Point.o SECP256K1.o KeyHunt.o GPU/GPUGenerate.o \
         hash/ripemd160.o hash/sha256.o hash/sha512.o \
-        hash/ripemd160_sse.o hash/sha256_sse.o CmdParse.o GmpUtil.o)
+        hash/ripemd160_sse.o hash/sha256_sse.o hash/keccak160.o Bech32.o)
 
 endif
 
@@ -43,14 +43,14 @@ CXXFLAGS   = -DWITHGPU -m64  -mssse3 -Wno-write-strings -g -I. -I$(CUDA)/include
 else
 CXXFLAGS   =  -DWITHGPU -m64 -mssse3 -Wno-write-strings -O2 -I. -I$(CUDA)/include
 endif
-LFLAGS     = -lgmp -lpthread -L$(CUDA)/lib64 -lcudart
+LFLAGS     = -lpthread -L$(CUDA)/lib64 -lcudart
 else
 ifdef debug
 CXXFLAGS   = -m64 -mssse3 -Wno-write-strings -g -I. -I$(CUDA)/include
 else
 CXXFLAGS   =  -m64 -mssse3 -Wno-write-strings -O2 -I. -I$(CUDA)/include
 endif
-LFLAGS     = -lgmp -lpthread
+LFLAGS     = -lpthread
 endif
 
 
@@ -69,11 +69,11 @@ endif
 $(OBJDIR)/%.o : %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
-all: KeyHunt-Cuda
+all: KeyHunt
 
-KeyHunt-Cuda: $(OBJET)
-	@echo Making KeyHunt-Cuda...
-	$(CXX) $(OBJET) $(LFLAGS) -o KeyHunt-Cuda
+KeyHunt: $(OBJET)
+	@echo Making KeyHunt...
+	$(CXX) $(OBJET) $(LFLAGS) -o KeyHunt
 
 $(OBJET): | $(OBJDIR) $(OBJDIR)/GPU $(OBJDIR)/hash
 

@@ -40,15 +40,20 @@ public:
 		uint8_t* h0, uint8_t* h1, uint8_t* h2, uint8_t* h3);
 
 	void GetHash160(bool compressed, Point& pubKey, unsigned char* hash);
+	void GetHashETH(Point& pubKey, unsigned char* hash);
 
 	void GetPubKeyBytes(bool compressed, Point& pubKey, unsigned char* publicKeyBytes);
 	void GetXBytes(bool compressed, Point& pubKey, unsigned char* publicKeyBytes);
 
 	std::string GetAddress(bool compressed, Point& pubKey);
+	std::string GetAddressETH(Point& pubKey);
 	std::string GetAddress(bool compressed, unsigned char* hash160);
+	std::string GetAddressETH(unsigned char* hash);
 	std::vector<std::string> GetAddress(bool compressed, unsigned char* h1, unsigned char* h2, unsigned char* h3, unsigned char* h4);
 	std::string GetPrivAddress(bool compressed, Int& privKey);
+	//std::string GetPrivAddressETH(Int& privKey);
 	std::string GetPublicKeyHex(bool compressed, Point& pubKey);
+	std::string GetPublicKeyHexETH(Point& pubKey);
 	Point ParsePublicKeyHex(std::string str, bool& isCompressed);
 	bool CheckPudAddress(std::string address);
 	static Int DecodePrivateKey(char* key, bool* compressed);

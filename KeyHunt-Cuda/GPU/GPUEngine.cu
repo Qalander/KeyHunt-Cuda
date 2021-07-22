@@ -107,6 +107,28 @@ __global__ void compute_keys_comp_mode_sx(uint32_t mode, uint32_t* xpoint, uint6
 }
 
 // ---------------------------------------------------------------------------------------
+// ethereum
+
+__global__ void compute_keys_mode_eth_ma(uint8_t* bloomLookUp, int BLOOM_BITS, uint8_t BLOOM_HASHES, uint64_t* keys,
+	uint32_t maxFound, uint32_t* found)
+{
+
+	int xPtr = (blockIdx.x * blockDim.x) * 8;
+	int yPtr = xPtr + 4 * blockDim.x;
+	ComputeKeysSEARCH_ETH_MODE_MA(keys + xPtr, keys + yPtr, bloomLookUp, BLOOM_BITS, BLOOM_HASHES, maxFound, found);
+
+}
+
+__global__ void compute_keys_mode_eth_sa(uint32_t* hash, uint64_t* keys, uint32_t maxFound, uint32_t* found)
+{
+
+	int xPtr = (blockIdx.x * blockDim.x) * 8;
+	int yPtr = xPtr + 4 * blockDim.x;
+	ComputeKeysSEARCH_ETH_MODE_SA(keys + xPtr, keys + yPtr, hash, maxFound, found);
+
+}
+
+// ---------------------------------------------------------------------------------------
 
 using namespace std;
 
@@ -158,15 +180,16 @@ int _ConvertSMVer2Cores(int major, int minor)
 
 // ----------------------------------------------------------------------------
 
-GPUEngine::GPUEngine(Secp256K1* secp, int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound, int searchMode,
-	int compMode, int64_t BLOOM_SIZE, uint64_t BLOOM_BITS, uint8_t BLOOM_HASHES, const uint8_t* BLOOM_DATA,
-	uint8_t* DATA, uint64_t TOTAL_COUNT, bool rKey)
+GPUEngine::GPUEngine(Secp256K1* secp, int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound,
+	int searchMode, int compMode, int coinType, int64_t BLOOM_SIZE, uint64_t BLOOM_BITS,
+	uint8_t BLOOM_HASHES, const uint8_t* BLOOM_DATA, uint8_t* DATA, uint64_t TOTAL_COUNT, bool rKey)
 {
 
 	// Initialise CUDA
 	this->nbThreadPerGroup = nbThreadPerGroup;
 	this->searchMode = searchMode;
 	this->compMode = compMode;
+	this->coinType = coinType;
 	this->rKey = rKey;
 
 	this->BLOOM_SIZE = BLOOM_SIZE;
@@ -244,13 +267,14 @@ GPUEngine::GPUEngine(Secp256K1* secp, int nbThreadGroup, int nbThreadPerGroup, i
 // ----------------------------------------------------------------------------
 
 GPUEngine::GPUEngine(Secp256K1* secp, int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound,
-	int searchMode, int compMode, const uint32_t* hashORxpoint, bool rKey)
+	int searchMode, int compMode, int coinType, const uint32_t* hashORxpoint, bool rKey)
 {
 
 	// Initialise CUDA
 	this->nbThreadPerGroup = nbThreadPerGroup;
 	this->searchMode = searchMode;
 	this->compMode = compMode;
+	this->coinType = coinType;
 	this->rKey = rKey;
 
 	initialised = false;
@@ -479,13 +503,19 @@ bool GPUEngine::callKernelSEARCH_MODE_MA()
 	CudaSafeCall(cudaMemset(outputBuffer, 0, 4));
 
 	// Call the kernel (Perform STEP_SIZE keys per thread)
-	if (compMode == SEARCH_COMPRESSED) {
-		compute_keys_comp_mode_ma << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
-			(compMode, inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
+	if (coinType == COIN_BTC) {
+		if (compMode == SEARCH_COMPRESSED) {
+			compute_keys_comp_mode_ma << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+				(compMode, inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
+		}
+		else {
+			compute_keys_mode_ma << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+				(compMode, inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
+		}
 	}
 	else {
-		compute_keys_mode_ma << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
-			(compMode, inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
+		compute_keys_mode_eth_ma << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+			(inputBloomLookUp, BLOOM_BITS, BLOOM_HASHES, inputKey, maxFound, outputBuffer);
 	}
 
 	cudaError_t err = cudaGetLastError();
@@ -532,13 +562,19 @@ bool GPUEngine::callKernelSEARCH_MODE_SA()
 	CudaSafeCall(cudaMemset(outputBuffer, 0, 4));
 
 	// Call the kernel (Perform STEP_SIZE keys per thread)
-	if (compMode == SEARCH_COMPRESSED) {
-		compute_keys_comp_mode_sa << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
-			(compMode, inputHashORxpoint, inputKey, maxFound, outputBuffer);
+	if (coinType == COIN_BTC) {
+		if (compMode == SEARCH_COMPRESSED) {
+			compute_keys_comp_mode_sa << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+				(compMode, inputHashORxpoint, inputKey, maxFound, outputBuffer);
+		}
+		else {
+			compute_keys_mode_sa << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+				(compMode, inputHashORxpoint, inputKey, maxFound, outputBuffer);
+		}
 	}
 	else {
-		compute_keys_mode_sa << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
-			(compMode, inputHashORxpoint, inputKey, maxFound, outputBuffer);
+		compute_keys_mode_eth_sa << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
+			(inputHashORxpoint, inputKey, maxFound, outputBuffer);
 	}
 
 	cudaError_t err = cudaGetLastError();

@@ -56,6 +56,9 @@
     <ClCompile Include="GmpUtil.cpp">
       <Filter>KEYHUNT</Filter>
     </ClCompile>
+    <ClCompile Include="hash\keccak160.cpp">
+      <Filter>HASH</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Bloom.h">
@@ -114,6 +117,9 @@
     </ClInclude>
     <ClInclude Include="GmpUtil.h">
       <Filter>KEYHUNT</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\keccak160.h">
+      <Filter>HASH</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -8,8 +8,10 @@ Renamed from VanitySearch to KeyHunt (inspired from [keyhunt](https://github.com
 A lot of gratitude to all the developers whose codes has been used here.
 
 # Features
-- Single address(rmd160 hash) searching with mode ```-m ADDREES```
-- Multiple addresses(rmd160 hashes) searching with mode ```-m ADDREESES```
+- For Bitcoin use ```--coin BTC``` and for Ethereum use ```--coin ETH```
+- Single address(rmd160 hash) for BTC or ETH address searching with mode ```-m ADDREES```
+- Multiple addresses(rmd160 hashes) or ETH addresses searching with mode ```-m ADDREESES```
+- XPoint[s] mode is applicable for ```--coin BTC``` only
 - Single xpoint searching with mode ```-m XPOINT```
 - Multiple xpoint searching with mode ```-m XPOINTS```
 - For XPoint[s] mode use x point of the public key, without 02 or 03 prefix(64 chars).
@@ -17,13 +19,13 @@ A lot of gratitude to all the developers whose codes has been used here.
 
 # Usage
 - For multiple addresses or xpoints, file format must be binary with sorted data.
-- To convert addresses list(text format) to rmd160 hashes binary file use provided python script ```addresses_to_hash160.py```
+- To convert Bitcoin addresses list(text format) to rmd160 hashes binary file use provided python script ```addresses_to_hash160.py```
 - To convert pubkeys list(text format) to xpoints binary file use provided python script ```pubkeys_to_xpoint.py```
+- To convert Ethereum addresses list(text format) to keccak160 hashes binary file use provided python script ```eth_addresses_to_bin.py```
 - After getting binary files from python scripts, use ```BinSort``` tool provided with KeyHunt-Cuda to sort these binary files.
 - Don't use XPoint[s] mode with ```uncompressed``` compression type.
 - CPU and GPU can not be used together, because the program divides the whole input range into equal parts for all the threads, so use either CPU or GPU so that the whole range can increment by all the threads with consistency.
-- Minimum entries for bloom filter should be >= 2.
-- RMD160 hashes or XPoints file must be in binary format with sorted data.
+- Minimum entries for bloom filter is >= 2.
 
 ## addresses_to_hash160.py
 ```
@@ -35,8 +37,13 @@ python3 addresses_to_hash160.py addresses_in.txt hash160_out.bin
 python3 pubkeys_to_xpoint.py pubkeys_in.txt xpoints_out.bin
 ```
 
+## eth_addresses_to_bin.py
+```
+python3 eth_addresses_to_bin.py eth_addresses_in.txt eth_addresses_out.bin
+```
+
 ## BinSort
-For hash160 ```length``` would be ```20``` and for xpoint ```length``` would be ```32```.
+For hash160 and keccak160 ```length``` is ```20``` and for xpoint ```length``` is ```32```.
 ```
 BinSort.exe
 Usage: BinSort.exe length in_file out_file
@@ -63,6 +70,11 @@ Where TARGETS is one address/xpont, or multiple hashes/xpoints file
                                                ADDRESSES: for multiple hashes/addresses
                                                XPOINT   : for single xpoint
                                                XPOINTS  : for multiple xpoints
+--coin BTC/ETH                           : Specify Coin name to search
+                                               BTC: available mode :-
+                                                   ADDRESS, ADDRESSES, XPOINT, XPOINTS
+                                               ETH: available mode :-
+                                                   ADDRESS, ADDRESSES
 -l, --list                               : List cuda enabled devices
 --range KEYSPACE                         : Specify the range:
                                                START:END
@@ -79,11 +91,12 @@ Where TARGETS is one address/xpont, or multiple hashes/xpoints file
 
 CPU mode:
 ```
-KeyHunt-Cuda.exe -t 4 --gpui 0 --gpux 256,256 -m addresses --range 1:1fffffffff -i puzzle_1_37_hash160_out_sorted.bin
+KeyHunt-Cuda.exe -t 4 --gpui 0 --gpux 256,256 -m addresses --coin BTC --range 1:1fffffffff -i puzzle_1_37_hash160_out_sorted.bin
 
-KeyHunt-Cuda v1.01
+KeyHunt-Cuda v1.07
 
 COMP MODE    : COMPRESSED
+COIN TYPE    : BITCOIN
 SEARCH MODE  : Multi Address
 DEVICE       : CPU
 CPU THREAD   : 4
@@ -129,16 +142,48 @@ PubK (HEX): 02F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9
 ....
 
 ```
+```
+KeyHunt-Cuda.exe -t 4 --gpui 0 --gpux 256,256 -m address --coin eth --range 8000000:fffffff 0xfda5c442e76a95f96c09782f1a15d3b58e32404f
+
+KeyHunt-Cuda v1.07
+
+COIN TYPE    : ETHEREUM
+SEARCH MODE  : Single Address
+DEVICE       : CPU
+CPU THREAD   : 4
+SSE          : NO
+RKEY         : 0 Mkeys
+MAX FOUND    : 65536
+ETH ADDRESS  : 0xfda5c442e76a95f96c09782f1a15d3b58e32404f
+OUTPUT FILE  : Found.txt
+
+Start Time   : Fri Jul 23 01:32:59 2021
+Global start : 8000000 (28 bit)
+Global end   : FFFFFFF (28 bit)
+Global range : 7FFFFFF (27 bit)
+
+
+[00:00:32] [CPU+GPU: 3.19 Mk/s] [GPU: 0.00 Mk/s] [C: 77.716065 %] [R: 0] [T: 104,308,736 (27 bit)] [F: 0]
+=================================================================================
+PubAddress: 0xfda5c442e76a95f96c09782f1a15d3b58e32404f
+Priv (HEX): D916CE8
+PubK (HEX): E9E661838A96A65331637E2A3E948DC0756E5009E7CB5C36664D9B72DD18C0A709F531540A4CA59F50F93B8BF7B0C060045754AAAE7CE1BEA5A136C0D5874B97
+=================================================================================
+[00:00:34] [CPU+GPU: 3.19 Mk/s] [GPU: 0.00 Mk/s] [C: 82.519532 %] [R: 0] [T: 110,755,840 (27 bit)] [F: 1]
+
+BYE
+```
 
 
 ### GPU mode:
-## Multiple addresses mode
+## Multiple addresses mode:
 ```
-KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m addresses -o Found.txt --range 1:1fffffffff -i puzzle_1_37_hash160_out_sorted.bin
+KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m addresses --coin BTC -o Found.txt --range 1:1fffffffff -i puzzle_1_37_hash160_out_sorted.bin
 
-KeyHunt-Cuda v1.01
+KeyHunt-Cuda v1.07
 
 COMP MODE    : COMPRESSED
+COIN TYPE    : BITCOIN
 SEARCH MODE  : Multi Address
 DEVICE       : GPU
 CPU THREAD   : 0
@@ -194,13 +239,78 @@ PubK (HEX): 0243601D61C836387485E9514AB5C8924DD2CFD466AF34AC95002727E1659D60F7
 
 ```
 
-## Single address mode:
+## Multiple addresses mode with ethereum
 ```
-KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m address --range 400000000:7ffffffff 1PWCx5fovoEaoBowAvF5k91m2Xat9bMgwb
+KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m addresses --coin eth --range 1:1fffffffff -i puzzle_1_37_addresses_eth_sorted.bin -o Found_Eth.txt
 
-KeyHunt-Cuda v1.01
+KeyHunt-Cuda v1.07
+
+COIN TYPE    : ETHEREUM
+SEARCH MODE  : Multi Address
+DEVICE       : GPU
+CPU THREAD   : 0
+GPU IDS      : 0
+GPU GRIDSIZE : 256x256
+SSE          : NO
+RKEY         : 0 Mkeys
+MAX FOUND    : 65536
+ETH ADDRESSES: puzzle_1_37_addresses_eth_sorted.bin
+OUTPUT FILE  : Found_Eth.txt
+
+Loaded       : 37 Ethereum addresses
+
+Bloom at 00000231F97E6200
+  Version    : 2.1
+  Entries    : 74
+  Error      : 0.0000010000
+  Bits       : 2127
+  Bits/Elem  : 28.755175
+  Bytes      : 266 (0 MB)
+  Hash funcs : 20
+
+Start Time   : Fri Jul 23 01:36:50 2021
+Global start : 1 (1 bit)
+Global end   : 1FFFFFFFFF (37 bit)
+Global range : 1FFFFFFFFE (37 bit)
+
+GPU          : GPU #0 GeForce GTX 1650 (14x64 cores) Grid(256x256)
+
+
+=================================================================================
+PubAddress: 0x2c559fed4b8a8e12e170740d4dabb4fc7d3f9b49
+Priv (HEX): 483
+PubK (HEX): 8B05B0603ABD75B0C57489E451F811E1AFE54A8715045CDF4888333F3EBC6E8B1D10F88145DB40FB889E2DDCE81BDA7C27F5B615ACD6179DBB30F4FE7F40FB39
+=================================================================================
+
+=================================================================================
+PubAddress: 0x86b1b106aeac5c5d2b16f9596755811cf976f34e
+Priv (HEX): 202
+PubK (HEX): A7A4C30291AC1DB24B4AB00C442AA832F7794B5A0959BEC6E8D7FEE802289DCDD580B4242CF68189AC1309E79C5A2132D2CBF0E18BE6D0B37D05A32256CA0C8B
+=================================================================================
+
+=================================================================================
+PubAddress: 0xdba02a942650eb93cf2566dbcb7d945b9544afcd
+Priv (HEX): 1460
+PubK (HEX): AADAAAB1DB8D5D450B511789C37E7CFEB0EB8B3E61A57A34166C5EDC9A4B869D2ED7CAAF2A261616F564190B4BC9F496F3DF86353FF76D7F704E48E654BACDF1
+=================================================================================
+[00:00:02] [CPU+GPU: 265.02 Mk/s] [GPU: 265.02 Mk/s] [C: 0.390625 %] [R: 0] [T: 536,870,912 (30 bit)] [F: 13]
+=================================================================================
+PubAddress: 0x0fc0e54f047efb3fd041837213ecb572ad594263
+Priv (HEX): 2930
+PubK (HEX): B4F1DE58B8B41AFE9FD4E5FFBDAFAEAB86C5DB4769C15D6E6011AE7351E547597875EE3C7E4D1B5C753D3747C7D5774B583DA4D075FB8CAF8CAB311B0F350483
+=================================================================================
+...
+
+```
+
+## Single address mode
+```
+KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m address --coin BTC --range 400000000:7ffffffff 1PWCx5fovoEaoBowAvF5k91m2Xat9bMgwb
+
+KeyHunt-Cuda v1.07
 
 COMP MODE    : COMPRESSED
+COIN TYPE    : BITCOIN
 SEARCH MODE  : Single Address
 DEVICE       : GPU
 CPU THREAD   : 0
@@ -231,13 +341,50 @@ PubK (HEX): 02F6A8148A62320E149CB15C544FE8A25AB483A0095D2280D03B8A00A7FEADA13D
 BYE
 ```
 
+## Single address mode with ethereum
+```
+KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m address --coin eth --range 800000000:fffffffff 0x1ffbb8f1dfc7e2308c39637e3f4b63c2362ddc6c
+
+KeyHunt-Cuda v1.07
+
+COIN TYPE    : ETHEREUM
+SEARCH MODE  : Single Address
+DEVICE       : GPU
+CPU THREAD   : 0
+GPU IDS      : 0
+GPU GRIDSIZE : 256x256
+SSE          : NO
+RKEY         : 0 Mkeys
+MAX FOUND    : 65536
+ETH ADDRESS  : 0x1ffbb8f1dfc7e2308c39637e3f4b63c2362ddc6c
+OUTPUT FILE  : Found.txt
+
+Start Time   : Fri Jul 23 01:31:53 2021
+Global start : 800000000 (36 bit)
+Global end   : FFFFFFFFF (36 bit)
+Global range : 7FFFFFFFF (35 bit)
+
+GPU          : GPU #0 GeForce GTX 1650 (14x64 cores) Grid(256x256)
+
+[00:00:49] [CPU+GPU: 262.44 Mk/s] [GPU: 262.44 Mk/s] [C: 37.109375 %] [R: 0] [T: 12,750,684,160 (34 bit)] [F: 0]
+=================================================================================
+PubAddress: 0x1ffbb8f1dfc7e2308c39637e3f4b63c2362ddc6c
+Priv (HEX): AAAAAAAAA
+PubK (HEX): 191E2BD4A789E873AFFA936C7F65AB7831C503556F7CF6753F190D5A1C4A91E046AC098E6ECCC7E0D380DE6F1A5748E1FC4FC515669A8AA084D25085392DA510
+=================================================================================
+[00:00:51] [CPU+GPU: 262.42 Mk/s] [GPU: 262.42 Mk/s] [C: 38.671875 %] [R: 0] [T: 13,287,555,072 (34 bit)] [F: 1]
+
+BYE
+```
+
 ## Multiple XPoints mode
 ```
-KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m xpoints --range 1:1fffffffff -i xpoints_1_37_out_sorted.bin
+KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m xpoints --coin BTC --range 1:1fffffffff -i xpoints_1_37_out_sorted.bin
 
-KeyHunt-Cuda v1.01
+KeyHunt-Cuda v1.07
 
 COMP MODE    : COMPRESSED
+COIN TYPE    : BITCOIN
 SEARCH MODE  : Multi X Points
 DEVICE       : GPU
 CPU THREAD   : 0
@@ -288,11 +435,12 @@ PubK (HEX): 03A7A4C30291AC1DB24B4AB00C442AA832F7794B5A0959BEC6E8D7FEE802289DCD
 
 ## Single XPoint mode
 ```
-KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m xpoint --range 8000000000:ffffffffff a2efa402fd5268400c77c20e574ba86409ededee7c4020e4b9f0edbee53de0d4
+KeyHunt-Cuda.exe -t 0 -g --gpui 0 --gpux 256,256 -m xpoint --coin BTC --range 8000000000:ffffffffff a2efa402fd5268400c77c20e574ba86409ededee7c4020e4b9f0edbee53de0d4
 
-KeyHunt-Cuda v1.01
+KeyHunt-Cuda v1.07
 
 COMP MODE    : COMPRESSED
+COIN TYPE    : BITCOIN
 SEARCH MODE  : Single X Point
 DEVICE       : GPU
 CPU THREAD   : 0

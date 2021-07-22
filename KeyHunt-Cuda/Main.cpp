@@ -13,7 +13,7 @@
 #include <unistd.h>
 #endif
 
-#define RELEASE "1.06"
+#define RELEASE "1.07"
 
 using namespace std;
 bool should_exit = false;
@@ -39,6 +39,11 @@ void usage()
 	printf("                                               ADDRESSES: for multiple hashes/addresses\n");
 	printf("                                               XPOINT   : for single xpoint\n");
 	printf("                                               XPOINTS  : for multiple xpoints\n");
+	printf("--coin BTC/ETH                           : Specify Coin name to search\n");
+	printf("                                               BTC: available mode :-\n");
+	printf("                                                   ADDRESS, ADDRESSES, XPOINT, XPOINTS\n");
+	printf("                                               ETH: available mode :-\n");
+	printf("                                                   ADDRESS, ADDRESSES\n");
 	printf("-l, --list                               : List cuda enabled devices\n");
 	printf("--range KEYSPACE                         : Specify the range:\n");
 	printf("                                               START:END\n");
@@ -106,6 +111,26 @@ int parseSearchMode(const std::string& s)
 	}
 
 	printf("Invalid search mode format: %s", stype.c_str());
+	usage();
+	exit(-1);
+}
+
+// ----------------------------------------------------------------------------
+
+int parseCoinType(const std::string& s)
+{
+	std::string stype = s;
+	std::transform(stype.begin(), stype.end(), stype.begin(), ::tolower);
+
+	if (stype == "btc") {
+		return COIN_BTC;
+	}
+
+	if (stype == "eth") {
+		return COIN_ETH;
+	}
+
+	printf("Invalid coin name: %s", stype.c_str());
 	usage();
 	exit(-1);
 }
@@ -201,6 +226,7 @@ int main(int argc, char** argv)
 	rangeEnd.SetInt32(0);
 
 	int searchMode = 0;
+	int coinType = COIN_BTC;
 
 	hashORxpoint.clear();
 
@@ -218,6 +244,7 @@ int main(int argc, char** argv)
 	parser.add("-i", "--in", true);
 	parser.add("-o", "--out", true);
 	parser.add("-m", "--mode", true);
+	parser.add("", "--coin", true);
 	parser.add("", "--range", true);
 	parser.add("-r", "--rkey", true);
 	parser.add("-v", "--version", false);
@@ -300,6 +327,9 @@ int main(int argc, char** argv)
 			else if (optArg.equals("-m", "--mode")) {
 				searchMode = parseSearchMode(optArg.arg);
 			}
+			else if (optArg.equals("", "--coin")) {
+				coinType = parseCoinType(optArg.arg);
+			}
 			else if (optArg.equals("", "--range")) {
 				std::string range = optArg.arg;
 				parseRange(range, rangeStart, rangeEnd);
@@ -318,6 +348,20 @@ int main(int argc, char** argv)
 			return -1;
 		}
 	}
+
+	// 
+	if (coinType == COIN_ETH && (searchMode == SEARCH_MODE_SX || searchMode == SEARCH_MODE_MX/* || compMode == SEARCH_COMPRESSED*/)) {
+		printf("Error: %s\n", "Wrong search or compress mode provided for ETH coin type");
+		usage();
+		return -1;
+	}
+	if (coinType == COIN_ETH) {
+		compMode = SEARCH_UNCOMPRESSED;
+		useSSE = false;
+	}
+	if (searchMode == (int)SEARCH_MODE_MX || searchMode == (int)SEARCH_MODE_SX)
+		useSSE = false;
+
 
 	// Parse operands
 	std::vector<std::string> ops = parser.getOperands();
@@ -353,17 +397,39 @@ int main(int argc, char** argv)
 		case (int)SEARCH_MODE_SA:
 		{
 			address = ops[0];
-			if (address.length() < 30 || address[0] != '1') {
-				printf("Error: %s\n", "Invalid address, must have P2PKH address only");
-				usage();
-				return -1;
+			if (coinType == COIN_BTC) {
+				if (address.length() < 30 || address[0] != '1') {
+					printf("Error: %s\n", "Invalid address, must have Bitcoin P2PKH address or Ethereum address");
+					usage();
+					return -1;
+				}
+				else {
+					if (DecodeBase58(address, hashORxpoint)) {
+						hashORxpoint.erase(hashORxpoint.begin() + 0);
+						hashORxpoint.erase(hashORxpoint.begin() + 20, hashORxpoint.begin() + 24);
+						assert(hashORxpoint.size() == 20);
+					}
+				}
 			}
 			else {
-				if (DecodeBase58(address, hashORxpoint)) {
-					hashORxpoint.erase(hashORxpoint.begin() + 0);
-					hashORxpoint.erase(hashORxpoint.begin() + 20, hashORxpoint.begin() + 24);
-					assert(hashORxpoint.size() == 20);
+				if (address.length() != 42 || address[0] != '0' || address[1] != 'x') {
+					printf("Error: %s\n", "Invalid Ethereum address");
+					usage();
+					return -1;
 				}
+				address.erase(0, 2);
+				for (int i = 0; i < 40; i += 2) {
+					uint8_t c = 0;
+					for (size_t j = 0; j < 2; j++) {
+						uint32_t c0 = (uint32_t)address[i + j];
+						uint8_t c2 = (uint8_t)strtol((char*)&c0, NULL, 16);
+						if (j == 0)
+							c2 = c2 << 4;
+						c |= c2;
+					}
+					hashORxpoint.push_back(c);
+				}
+				assert(hashORxpoint.size() == 20);
 			}
 		}
 		break;
@@ -426,7 +492,9 @@ int main(int argc, char** argv)
 	printf("\n");
 	printf("KeyHunt-Cuda v" RELEASE "\n");
 	printf("\n");
-	printf("COMP MODE    : %s\n", compMode == SEARCH_COMPRESSED ? "COMPRESSED" : (compMode == SEARCH_UNCOMPRESSED ? "UNCOMPRESSED" : "COMPRESSED & UNCOMPRESSED"));
+	if (coinType == COIN_BTC)
+		printf("COMP MODE    : %s\n", compMode == SEARCH_COMPRESSED ? "COMPRESSED" : (compMode == SEARCH_UNCOMPRESSED ? "UNCOMPRESSED" : "COMPRESSED & UNCOMPRESSED"));
+	printf("COIN TYPE    : %s\n", coinType == COIN_BTC ? "BITCOIN" : "ETHEREUM");
 	printf("SEARCH MODE  : %s\n", searchMode == (int)SEARCH_MODE_MA ? "Multi Address" : (searchMode == (int)SEARCH_MODE_SA ? "Single Address" : (searchMode == (int)SEARCH_MODE_MX ? "Multi X Points" : "Single X Point")));
 	printf("DEVICE       : %s\n", (gpuEnable && nbCPUThread > 0) ? "CPU & GPU" : ((!gpuEnable && nbCPUThread > 0) ? "CPU" : "GPU"));
 	printf("CPU THREAD   : %d\n", nbCPUThread);
@@ -459,26 +527,38 @@ int main(int argc, char** argv)
 	printf("SSE          : %s\n", useSSE ? "YES" : "NO");
 	printf("RKEY         : %llu Mkeys\n", rKey);
 	printf("MAX FOUND    : %d\n", maxFound);
-	switch (searchMode) {
-	case (int)SEARCH_MODE_MA:
-		printf("HASH160 FILE : %s\n", inputFile.c_str());
-		break;
-	case (int)SEARCH_MODE_SA:
-		printf("ADDRESS      : %s\n", address.c_str());
-		break;
-	case (int)SEARCH_MODE_MX:
-		printf("XPOINTS FILE : %s\n", inputFile.c_str());
-		break;
-	case (int)SEARCH_MODE_SX:
-		printf("XPOINT       : %s\n", xpoint.c_str());
-		break;
-	default:
-		break;
+	if (coinType == COIN_BTC) {
+		switch (searchMode) {
+		case (int)SEARCH_MODE_MA:
+			printf("BTC HASH160s : %s\n", inputFile.c_str());
+			break;
+		case (int)SEARCH_MODE_SA:
+			printf("BTC ADDRESS  : %s\n", address.c_str());
+			break;
+		case (int)SEARCH_MODE_MX:
+			printf("BTC XPOINTS  : %s\n", inputFile.c_str());
+			break;
+		case (int)SEARCH_MODE_SX:
+			printf("BTC XPOINT   : %s\n", xpoint.c_str());
+			break;
+		default:
+			break;
+		}
+	}
+	else {
+		switch (searchMode) {
+		case (int)SEARCH_MODE_MA:
+			printf("ETH ADDRESSES: %s\n", inputFile.c_str());
+			break;
+		case (int)SEARCH_MODE_SA:
+			printf("ETH ADDRESS  : 0x%s\n", address.c_str());
+			break;
+		default:
+			break;
+		}
 	}
 	printf("OUTPUT FILE  : %s\n", outputFile.c_str());
 
-	if (searchMode == (int)SEARCH_MODE_MX || searchMode == (int)SEARCH_MODE_SX)
-		useSSE = false;
 
 #ifdef WIN64
 	if (SetConsoleCtrlHandler(CtrlHandler, TRUE)) {
@@ -486,12 +566,12 @@ int main(int argc, char** argv)
 		switch (searchMode) {
 		case (int)SEARCH_MODE_MA:
 		case (int)SEARCH_MODE_MX:
-			v = new KeyHunt(inputFile, compMode, searchMode, gpuEnable, outputFile, useSSE,
+			v = new KeyHunt(inputFile, compMode, searchMode, coinType, gpuEnable, outputFile, useSSE,
 				maxFound, rKey, rangeStart.GetBase16(), rangeEnd.GetBase16(), should_exit);
 			break;
 		case (int)SEARCH_MODE_SA:
 		case (int)SEARCH_MODE_SX:
-			v = new KeyHunt(hashORxpoint, compMode, searchMode, gpuEnable, outputFile, useSSE,
+			v = new KeyHunt(hashORxpoint, compMode, searchMode, coinType, gpuEnable, outputFile, useSSE,
 				maxFound, rKey, rangeStart.GetBase16(), rangeEnd.GetBase16(), should_exit);
 			break;
 		default:
@@ -506,7 +586,7 @@ int main(int argc, char** argv)
 	}
 	else {
 		printf("Error: could not set control-c handler\n");
-		return 1;
+		return -1;
 	}
 #else
 	signal(SIGINT, CtrlHandler);
@@ -514,12 +594,12 @@ int main(int argc, char** argv)
 	switch (searchMode) {
 	case (int)SEARCH_MODE_MA:
 	case (int)SEARCH_MODE_MX:
-		v = new KeyHunt(inputFile, compMode, searchMode, gpuEnable, outputFile, useSSE,
+		v = new KeyHunt(inputFile, compMode, searchMode, coinType, gpuEnable, outputFile, useSSE,
 			maxFound, rKey, rangeStart.GetBase16(), rangeEnd.GetBase16(), should_exit);
 		break;
 	case (int)SEARCH_MODE_SA:
 	case (int)SEARCH_MODE_SX:
-		v = new KeyHunt(hashORxpoint, compMode, searchMode, gpuEnable, outputFile, useSSE,
+		v = new KeyHunt(hashORxpoint, compMode, searchMode, coinType, gpuEnable, outputFile, useSSE,
 			maxFound, rKey, rangeStart.GetBase16(), rangeEnd.GetBase16(), should_exit);
 		break;
 	default:
@@ -531,4 +611,4 @@ int main(int argc, char** argv)
 	delete v;
 	return 0;
 #endif
-	}
+}
