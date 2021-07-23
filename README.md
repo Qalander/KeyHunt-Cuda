@@ -488,6 +488,7 @@ BYE
     $ make all
     ```
  - To build with CUDA: pass CCAP value according to your GPU compute capability
+ - To get info about various Nvidia GPU CCAP value see [this](https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/).
     ```sh
     $ cd KeyHunt-Cuda
     $ make gpu=1 CCAP=75 all
